@@ -1,8 +1,16 @@
 package com.epam.aidial.core.config;
 
+import com.epam.aidial.core.config.databind.JsonArrayToSchemaMapDeserializer;
+import com.epam.aidial.core.config.databind.JsonSchemaMapToJsonArraySerializer;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.networknt.schema.JsonSchema;
 import lombok.Data;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,6 +31,10 @@ public class Config {
     private Map<String, Role> roles = new HashMap<>();
     private Set<Integer> retriableErrorCodes = Set.of();
     private Map<String, Interceptor> interceptors = Map.of();
+
+    @JsonDeserialize(using = JsonArrayToSchemaMapDeserializer.class)
+    @JsonSerialize(using = JsonSchemaMapToJsonArraySerializer.class)
+    private Map<URI, String> customApplicationSchemas = Map.of();
 
 
     public Deployment selectDeployment(String deploymentId) {
