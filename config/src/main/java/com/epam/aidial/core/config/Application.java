@@ -1,5 +1,8 @@
 package com.epam.aidial.core.config;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -7,8 +10,10 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
+import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 @Data
 @Accessors(chain = true)
@@ -18,6 +23,25 @@ import java.util.Map;
 public class Application extends Deployment {
 
     private Function function;
+
+    @JsonIgnore
+    private Map<String, Object> customAppServerProperties = Map.of();
+
+    @JsonIgnore
+    private Map<String, Object> customAppClientProperties = Map.of();
+
+    @JsonAnySetter
+    public void setCustomAppClientProperty(String key, Object value) {
+        customAppClientProperties.put(key, value);
+    }
+
+    @JsonAnyGetter
+    public Map<String, Object> getCustomAppClientProperties() {
+        return customAppClientProperties;
+    }
+
+    @Nullable
+    private URI customAppSchemaId;
 
     @Data
     @Accessors(chain = true)

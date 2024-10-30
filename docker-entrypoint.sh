@@ -8,8 +8,7 @@ if [ $# -lt 1 ]; then
   # If the container is run under the root user, update the ownership of directories
   # that may be mounted as volumes to ensure 'appuser' has the necessary access rights.
   if [ "$(id -u)" = '0' ]; then
-    find "$LOG_DIR" ! -user appuser -exec chown appuser '{}' +
-    find "$STORAGE_DIR" ! -user appuser -exec chown appuser '{}' +
+    chown -R appuser:appuser "$LOG_DIR" "$STORAGE_DIR"
 
     exec su-exec appuser "/app/bin/server" "$@"
   fi
