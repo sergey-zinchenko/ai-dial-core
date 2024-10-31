@@ -29,22 +29,23 @@ public class JsonArrayToSchemaMapDeserializer extends JsonDeserializer<Map<URI, 
         Map<URI, String> result = Map.of();
         for (int i = 0; i < tree.size(); i++) {
             TreeNode value = tree.get(i);
-            if (value.isObject()) {
-                JsonNode valueNode = (JsonNode) value;
-                if (!valueNode.has("$id")) {
-                    throw new InvalidFormatException(jsonParser, "JSON Schema for the custom app should have $id property",
-                            valueNode.toPrettyString(), Map.class);
-                }
-                URI schemaId = URI.create(valueNode.get("$id").asText());
-                Set<ValidationMessage> errors = CustomApplicationMetaSchemaHolder.schema.validate(valueNode);
-                if (!errors.isEmpty()) {
-                    String message = "Failed to validate custom application schema " + schemaId + errors.stream()
-                            .map(ValidationMessage::getMessage).collect(Collectors.joining(", "));
-                    throw new InvalidFormatException(jsonParser, message, valueNode.toPrettyString(), Map.class);
-                }
-                result = Stream.concat(result.entrySet().stream(), Stream.of(Map.entry(schemaId, valueNode.toString())))
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            if (!value.isObject()) {
+                continue;
             }
+            JsonNode valueNode = (JsonNode) value;
+            if (!valueNode.has("$id")) {
+                throw new InvalidFormatException(jsonParser, "JSON Schema for the custom app should have $id property",
+                        valueNode.toPrettyString(), Map.class);
+            }
+            URI schemaId = URI.create(valueNode.get("$id").asText());
+            Set<ValidationMessage> errors = CustomApplicationMetaSchemaHolder.schema.validate(valueNode);
+            if (!errors.isEmpty()) {
+                String message = "Failed to validate custom application schema " + schemaId + errors.stream()
+                        .map(ValidationMessage::getMessage).collect(Collectors.joining(", "));
+                throw new InvalidFormatException(jsonParser, message, valueNode.toPrettyString(), Map.class);
+            }
+            result = Stream.concat(result.entrySet().stream(), Stream.of(Map.entry(schemaId, valueNode.toString())))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
         return result;
     }
