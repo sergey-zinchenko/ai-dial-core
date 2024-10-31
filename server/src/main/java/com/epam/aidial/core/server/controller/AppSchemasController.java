@@ -27,29 +27,35 @@ public class AppSchemasController implements Controller {
         this.context = context;
     }
 
+    private static final String LIST_SCHEMAS_RELATIVE_PATH = "list";
+    private static final String META_SCHEMA_RELATIVE_PATH = "schema";
+
     @Override
     public Future<?> handle() {
         HttpServerRequest request = context.getRequest();
         String path = request.path();
-        if (path.endsWith("list")) {
+        if (path.endsWith(LIST_SCHEMAS_RELATIVE_PATH)) {
             return handleListSchemas();
-        } else if (path.endsWith("schema")) {
+        } else if (path.endsWith(META_SCHEMA_RELATIVE_PATH)) {
             return handleGetMetaSchema();
         } else {
             return handleGetSchema();
         }
     }
 
+    private static final String FAILED_READ_META_SCHEMA_MESSAGE = "Failed to read meta-schema from resources";
+
+
     private Future<?> handleGetMetaSchema() {
         try (InputStream inputStream = AppSchemasController.class.getClassLoader().getResourceAsStream("custom_app_meta_schema")) {
             if (inputStream == null) {
-                return context.respond(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read meta-schema from resources");
+                return context.respond(HttpStatus.INTERNAL_SERVER_ERROR, FAILED_READ_META_SCHEMA_MESSAGE);
             }
             JsonNode metaSchema = ProxyUtil.MAPPER.readTree(inputStream);
             return context.respond(HttpStatus.OK, metaSchema);
         } catch (IOException e) {
-            log.error("Failed to read meta-schema from resources", e);
-            return context.respond(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read meta-schema from resources");
+            log.error(FAILED_READ_META_SCHEMA_MESSAGE, e);
+            return context.respond(HttpStatus.INTERNAL_SERVER_ERROR, FAILED_READ_META_SCHEMA_MESSAGE);
         }
     }
 
@@ -78,7 +84,7 @@ public class AppSchemasController implements Controller {
         try {
             JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
             if (schemaNode.has(COMPLETION_ENDPOINT_FIELD)) {
-                ((ObjectNode) schemaNode).remove(COMPLETION_ENDPOINT_FIELD);
+                ((ObjectNode) schemaNode).remove(COMPLETION_ENDPOINT_FIELD); //we need to remove completion endpoint from response to avoid disclosure
             }
             return context.respond(HttpStatus.OK, schemaNode);
         } catch (IOException e) {
