@@ -63,6 +63,8 @@ public class ControllerSelector {
 
     private static final Pattern USER_INFO = Pattern.compile("^/v1/user/info$");
 
+    private static final Pattern APP_SCHEMAS = Pattern.compile("^/v1/custom_application_schemas(/list|/schema)?$");
+
     public Controller select(Proxy proxy, ProxyContext context) {
         String path = context.getRequest().path();
         HttpMethod method = context.getRequest().method();
@@ -214,6 +216,11 @@ public class ControllerSelector {
         match = match(USER_INFO, path, context);
         if (match != null) {
             return new UserInfoController(context);
+        }
+
+        match = match(APP_SCHEMAS, path, context);
+        if (match != null) {
+            return new AppSchemasController(context);
         }
 
         return null;

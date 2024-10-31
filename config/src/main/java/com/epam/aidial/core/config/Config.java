@@ -3,6 +3,7 @@ package com.epam.aidial.core.config;
 import com.epam.aidial.core.config.databind.JsonArrayToSchemaMapDeserializer;
 import com.epam.aidial.core.config.databind.JsonSchemaMapToJsonArraySerializer;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -34,6 +35,7 @@ public class Config {
 
     @JsonDeserialize(using = JsonArrayToSchemaMapDeserializer.class)
     @JsonSerialize(using = JsonSchemaMapToJsonArraySerializer.class)
+    @JsonProperty("custom_application_schemas")
     private Map<URI, String> customApplicationSchemas = Map.of();
 
 
