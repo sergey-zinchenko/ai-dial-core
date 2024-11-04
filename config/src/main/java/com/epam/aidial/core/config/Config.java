@@ -7,9 +7,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
-import validation.ConformToSchema;
+import validation.CustomApplicationsConformToSchemas;
+import validation.ConformToMetaSchema;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -17,6 +17,7 @@ import java.util.Set;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
+@CustomApplicationsConformToSchemas(message = "All custom applications should conform to their schemas")
 public class Config {
     public static final String ASSISTANT = "assistant";
 
@@ -24,7 +25,7 @@ public class Config {
     private LinkedHashMap<String, Route> routes = new LinkedHashMap<>();
     private Map<String, Model> models = Map.of();
     private Map<String, Addon> addons = Map.of();
-    @ConformToSchema(schemaId = SchemaIdFunction.class)
+    @ConformToMetaSchema(message = "All custom application schemas should conform to meta schema")
     private Map<String, Application> applications = Map.of();
     private Assistants assistant = new Assistants();
     private Map<String, Key> keys = new HashMap<>();
@@ -35,7 +36,7 @@ public class Config {
     @JsonDeserialize(using = JsonArrayToSchemaMapDeserializer.class)
     @JsonSerialize(using = JsonSchemaMapToJsonArraySerializer.class)
     @JsonProperty("custom_application_schemas")
-    private Map<URI, String> customApplicationSchemas = Map.of();
+    private Map<String, String> customApplicationSchemas = Map.of();
 
 
     public Deployment selectDeployment(String deploymentId) {
@@ -51,15 +52,5 @@ public class Config {
 
         Assistants assistants = assistant;
         return assistants.getAssistants().get(deploymentId);
-    }
-
-    static class SchemaIdFunction implements java.util.function.Function<Object, String> {
-        @Override
-        public String apply(Object o) {
-            assert o instanceof Application;
-            Application application = (Application) o;
-            assert application.getCustomAppSchemaId() != null;
-            return application.getCustomAppSchemaId().toString();
-        }
     }
 }
