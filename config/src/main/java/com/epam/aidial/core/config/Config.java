@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -52,5 +53,13 @@ public class Config {
 
         Assistants assistants = assistant;
         return assistants.getAssistants().get(deploymentId);
+    }
+
+
+    public String getCustomApplicationSchema(URI schemaId) {
+        if (schemaId == null) {
+            return null;
+        }
+        return customApplicationSchemas.get(schemaId.toString());
     }
 }

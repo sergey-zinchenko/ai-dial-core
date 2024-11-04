@@ -5,9 +5,10 @@ import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.function.BaseRequestFunction;
+import com.epam.aidial.core.server.util.CustomApplicationPropertiesUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.storage.http.HttpStatus;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.vertx.core.buffer.Buffer;
 import lombok.extern.slf4j.Slf4j;
@@ -35,16 +36,16 @@ public class AppendCustomApplicationPropertiesFn extends BaseRequestFunction<Obj
         }
     }
 
-    private static boolean appendCustomProperties(ProxyContext context, ObjectNode tree) {
+    private static boolean appendCustomProperties(ProxyContext context, ObjectNode tree) throws JsonProcessingException {
         Deployment deployment = context.getDeployment();
         if (!(deployment instanceof Application application && application.getCustomAppSchemaId() != null)) {
             return false;
         }
         boolean appended = false;
+        Map<String, Object> props = CustomApplicationPropertiesUtils.getCustomClientProperties(context.getConfig(), application);
         ObjectNode customAppPropertiesNode = ProxyUtil.MAPPER.createObjectNode();
-        for (Map.Entry<String, Object> entry : application.getCustomProperties().entrySet()) {
-            customAppPropertiesNode.set(entry.getKey(), ProxyUtil.MAPPER.convertValue(entry.getValue(), JsonNode.class));
-            appended = true;
+        for (Map.Entry<String, Object> entry : props.entrySet()) {
+            customAppPropertiesNode.put(entry.getKey(), entry.getValue().toString());
         }
         tree.set("custom_application_properties", customAppPropertiesNode);
         return appended;
