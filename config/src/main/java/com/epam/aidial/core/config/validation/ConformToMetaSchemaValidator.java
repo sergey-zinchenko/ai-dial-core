@@ -1,4 +1,4 @@
-package validation;
+package com.epam.aidial.core.config.validation;
 
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonSchema;

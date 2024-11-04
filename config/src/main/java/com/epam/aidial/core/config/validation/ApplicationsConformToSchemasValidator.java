@@ -1,4 +1,4 @@
-package validation;
+package com.epam.aidial.core.config.validation;
 
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;

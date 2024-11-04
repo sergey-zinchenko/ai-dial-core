@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 
-public class JsonSchemaMapToJsonArraySerializer extends JsonSerializer<Map<URI, String>> {
+public class MapToJsonArraySerializer extends JsonSerializer<Map<URI, String>> {
 
     @Override
     public void serialize(Map<URI, String> uriStringMap, JsonGenerator jsonGenerator,

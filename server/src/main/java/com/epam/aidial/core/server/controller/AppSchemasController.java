@@ -76,7 +76,7 @@ public class AppSchemasController implements Controller {
             return context.respond(HttpStatus.BAD_REQUEST, "Schema ID should be a valid uri");
         }
 
-        String schema = context.getConfig().getCustomApplicationSchemas().get(schemaId);
+        String schema = context.getConfig().getCustomApplicationSchemas().get(schemaId.toString());
         if (schema == null) {
             return context.respond(HttpStatus.NOT_FOUND, "Schema not found");
         }
@@ -101,7 +101,7 @@ public class AppSchemasController implements Controller {
         Config config = context.getConfig();
         List<JsonNode> filteredSchemas = new ArrayList<>();
 
-        for (Map.Entry<URI, String> entry : config.getCustomApplicationSchemas().entrySet()) {
+        for (Map.Entry<String, String> entry : config.getCustomApplicationSchemas().entrySet()) {
             JsonNode schemaNode;
             try {
                 schemaNode = ProxyUtil.MAPPER.readTree(entry.getValue());

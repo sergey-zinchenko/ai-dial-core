@@ -1,4 +1,4 @@
-package validation;
+package com.epam.aidial.core.config.validation;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.ReportAsSingleViolation;

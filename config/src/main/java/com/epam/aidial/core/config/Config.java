@@ -1,14 +1,14 @@
 package com.epam.aidial.core.config;
 
 import com.epam.aidial.core.config.databind.JsonArrayToSchemaMapDeserializer;
-import com.epam.aidial.core.config.databind.JsonSchemaMapToJsonArraySerializer;
+import com.epam.aidial.core.config.databind.MapToJsonArraySerializer;
+import com.epam.aidial.core.config.validation.ConformToMetaSchema;
+import com.epam.aidial.core.config.validation.CustomApplicationsConformToSchemas;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
-import validation.CustomApplicationsConformToSchemas;
-import validation.ConformToMetaSchema;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -34,7 +34,7 @@ public class Config {
     private Map<String, Interceptor> interceptors = Map.of();
 
     @JsonDeserialize(using = JsonArrayToSchemaMapDeserializer.class)
-    @JsonSerialize(using = JsonSchemaMapToJsonArraySerializer.class)
+    @JsonSerialize(using = MapToJsonArraySerializer.class)
     @JsonProperty("custom_application_schemas")
     private Map<String, String> customApplicationSchemas = Map.of();
 

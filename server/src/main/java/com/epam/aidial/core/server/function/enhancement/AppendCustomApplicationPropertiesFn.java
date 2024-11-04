@@ -42,7 +42,7 @@ public class AppendCustomApplicationPropertiesFn extends BaseRequestFunction<Obj
         }
         boolean appended = false;
         ObjectNode customAppPropertiesNode = ProxyUtil.MAPPER.createObjectNode();
-        for (Map.Entry<String, Object> entry : application.getCustomAppServerProperties().entrySet()) {
+        for (Map.Entry<String, Object> entry : application.getCustomProperties().entrySet()) {
             customAppPropertiesNode.set(entry.getKey(), ProxyUtil.MAPPER.convertValue(entry.getValue(), JsonNode.class));
             appended = true;
         }
