@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
+import validation.ConformToSchema;
 
 import java.net.URI;
 import java.util.Collection;
@@ -25,19 +26,11 @@ public class Application extends Deployment {
     private Function function;
 
     @JsonIgnore
-    private Map<String, Object> customAppServerProperties = Map.of();
-
-    @JsonIgnore
-    private Map<String, Object> customAppClientProperties = Map.of();
+    private Map<String, Object> customProperties = Map.of();
 
     @JsonAnySetter
-    public void setCustomAppClientProperty(String key, Object value) {
-        customAppClientProperties.put(key, value);
-    }
-
-    @JsonAnyGetter
-    public Map<String, Object> getCustomAppClientProperties() {
-        return customAppClientProperties;
+    public void setCustomProperty(String key, Object value) {
+        customProperties.put(key, value);
     }
 
     @Nullable

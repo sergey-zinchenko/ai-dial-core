@@ -4,12 +4,10 @@ import com.epam.aidial.core.config.databind.JsonArrayToSchemaMapDeserializer;
 import com.epam.aidial.core.config.databind.JsonSchemaMapToJsonArraySerializer;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.networknt.schema.JsonSchema;
 import lombok.Data;
+import validation.ConformToSchema;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -26,6 +24,7 @@ public class Config {
     private LinkedHashMap<String, Route> routes = new LinkedHashMap<>();
     private Map<String, Model> models = Map.of();
     private Map<String, Addon> addons = Map.of();
+    @ConformToSchema(schemaId = SchemaIdFunction.class)
     private Map<String, Application> applications = Map.of();
     private Assistants assistant = new Assistants();
     private Map<String, Key> keys = new HashMap<>();
@@ -52,5 +51,15 @@ public class Config {
 
         Assistants assistants = assistant;
         return assistants.getAssistants().get(deploymentId);
+    }
+
+    static class SchemaIdFunction implements java.util.function.Function<Object, String> {
+        @Override
+        public String apply(Object o) {
+            assert o instanceof Application;
+            Application application = (Application) o;
+            assert application.getCustomAppSchemaId() != null;
+            return application.getCustomAppSchemaId().toString();
+        }
     }
 }

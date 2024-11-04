@@ -4,6 +4,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
     implementation 'com.networknt:json-schema-validator:1.5.2'
+    implementation 'org.hibernate.validator:hibernate-validator:8.0.0.Final'
 }
 
 test {
