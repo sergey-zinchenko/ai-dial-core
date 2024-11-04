@@ -25,7 +25,6 @@ public class Config {
     private LinkedHashMap<String, Route> routes = new LinkedHashMap<>();
     private Map<String, Model> models = Map.of();
     private Map<String, Addon> addons = Map.of();
-    @ConformToMetaSchema(message = "All custom application schemas should conform to meta schema")
     private Map<String, Application> applications = Map.of();
     private Assistants assistant = new Assistants();
     private Map<String, Key> keys = new HashMap<>();
@@ -36,6 +35,7 @@ public class Config {
     @JsonDeserialize(using = JsonArrayToSchemaMapDeserializer.class)
     @JsonSerialize(using = MapToJsonArraySerializer.class)
     @JsonProperty("custom_application_schemas")
+    @ConformToMetaSchema(message = "All custom application schemas should conform to meta schema")
     private Map<String, String> customApplicationSchemas = Map.of();
 
 

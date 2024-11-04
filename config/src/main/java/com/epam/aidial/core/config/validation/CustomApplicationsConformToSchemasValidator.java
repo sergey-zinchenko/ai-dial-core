@@ -13,7 +13,7 @@ import jakarta.validation.ConstraintValidatorContext;
 import java.net.URI;
 import java.util.Map;
 
-public class ApplicationsConformToSchemasValidator implements ConstraintValidator<ConformToMetaSchema, Config> {
+public class CustomApplicationsConformToSchemasValidator implements ConstraintValidator<CustomApplicationsConformToSchemas, Config> {
 
     @Override
     public boolean isValid(Config value, ConstraintValidatorContext context) {

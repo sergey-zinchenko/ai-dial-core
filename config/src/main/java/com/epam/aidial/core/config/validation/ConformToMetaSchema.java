@@ -17,6 +17,8 @@ import static java.lang.annotation.ElementType.FIELD;
 @ReportAsSingleViolation
 public @interface ConformToMetaSchema {
     String message() default "Schemas should comply with the meta schema";
+    Class<?>[] groups() default {};
+    Class<? extends jakarta.validation.Payload>[] payload() default {};
 }
 
 
