@@ -105,4 +105,30 @@ public class Application extends Deployment {
         private String instance;
         private String content;
     }
+
+    public Application() {
+        super();
+    }
+
+    public Application(Application source) {
+        super();
+        this.setName(source.getName());
+        this.setEndpoint(source.getEndpoint());
+        this.setDisplayName(source.getDisplayName());
+        this.setDisplayVersion(source.getDisplayVersion());
+        this.setIconUrl(source.getIconUrl());
+        this.setDescription(source.getDescription());
+        this.setReference(source.getReference());
+        this.setUserRoles(source.getUserRoles());
+        this.setForwardAuthToken(source.isForwardAuthToken());
+        this.setFeatures(source.getFeatures());
+        this.setInputAttachmentTypes(source.getInputAttachmentTypes());
+        this.setMaxInputAttachments(source.getMaxInputAttachments());
+        this.setDefaults(source.getDefaults());
+        this.setInterceptors(source.getInterceptors());
+        this.setDescriptionKeywords(source.getDescriptionKeywords());
+        this.setFunction(source.getFunction());
+        this.setCustomProperties(source.getCustomProperties());
+        this.setCustomAppSchemaId(source.getCustomAppSchemaId());
+    }
 }
