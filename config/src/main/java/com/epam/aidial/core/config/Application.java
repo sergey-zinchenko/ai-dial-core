@@ -1,5 +1,7 @@
 package com.epam.aidial.core.config;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -11,6 +13,7 @@ import lombok.experimental.Accessors;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -24,14 +27,20 @@ public class Application extends Deployment {
     private Function function;
 
     @JsonIgnore
-    private Map<String, Object> customProperties = Map.of();
+    private Map<String, Object> customProperties = new HashMap<>(); //all custom application properties will land there
 
     @JsonAnySetter
-    public void setCustomProperty(String key, Object value) {
+    public void setCustomProperty(String key, Object value) { //all custom application properties will land there
         customProperties.put(key, value);
     }
 
+    @JsonAnyGetter
+    public  Map<String, Object> getCustomProperty() {
+        return customProperties;
+    }
+
     @Nullable
+    @JsonAlias({"customAppSchemaId", "custom_app_schema_id"})
     private URI customAppSchemaId;
 
     @Data
