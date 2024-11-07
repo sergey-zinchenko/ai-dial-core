@@ -96,7 +96,7 @@ public class DeploymentController {
             }
 
             Application app =  proxy.getApplicationService().getApplication(resource).getValue();
-            app = CustomApplicationPropertiesUtils.filterCustomClientProperties(context, resource, app);
+            app = CustomApplicationPropertiesUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
             return app;
         }, false);
     }

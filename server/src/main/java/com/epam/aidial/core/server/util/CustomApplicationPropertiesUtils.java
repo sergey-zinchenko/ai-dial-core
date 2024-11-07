@@ -84,7 +84,8 @@ public class CustomApplicationPropertiesUtils {
         return copy;
     }
 
-    public Application filterCustomClientProperties(ProxyContext ctx, ResourceDescriptor resource, Application application) throws JsonProcessingException {
+    public Application filterCustomClientPropertiesWhenNoWriteAccess(ProxyContext ctx, ResourceDescriptor resource,
+                                                                     Application application) throws JsonProcessingException {
         Proxy proxy = ctx.getProxy();
         if (!proxy.getAccessService().hasWriteAccess(resource, ctx)) {
             application = CustomApplicationPropertiesUtils.filterCustomClientProperties(ctx.getConfig(), application);

@@ -129,15 +129,13 @@ public class ApplicationService {
         Set<MetadataBase> metadata = response.getResources();
 
         List<Application> list = new ArrayList<>();
-        boolean hasAdminAccess = context.getProxy().getAccessService().hasAdminAccess(context);
+
         for (MetadataBase meta : metadata) {
             ResourceDescriptor resource = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
 
             if (meta instanceof ResourceItemMetadata) {
                 Application application = getApplication(resource).getValue();
-                if (!meta.getPermissions().contains(ResourceAccessType.WRITE) && !hasAdminAccess) {
-                    application = CustomApplicationPropertiesUtils.filterCustomClientProperties(context, resource, application);
-                }
+                application = CustomApplicationPropertiesUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
                 list.add(application);
             } else {
                 list.addAll(getApplications(resource, context));
@@ -185,7 +183,6 @@ public class ApplicationService {
 
         List<Application> applications = new ArrayList<>();
         String nextToken = null;
-        boolean hasAdminAccess = ctx.getProxy().getAccessService().hasAdminAccess(ctx);
 
         do {
             ResourceFolderMetadata folder = resourceService.getFolderMetadata(resource, nextToken, PAGE_SIZE, true);
@@ -199,11 +196,8 @@ public class ApplicationService {
                 if (meta.getNodeType() == NodeType.ITEM && meta.getResourceType() == ResourceTypes.APPLICATION) {
                     try {
                         ResourceDescriptor item = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
-
                         Application application = getApplication(item).getValue();
-                        if (!meta.getPermissions().contains(ResourceAccessType.WRITE) && !hasAdminAccess) {
-                            application = CustomApplicationPropertiesUtils.filterCustomClientProperties(ctx.getConfig(), application);
-                        }
+                        application = CustomApplicationPropertiesUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
                         applications.add(application);
                     } catch (ResourceNotFoundException ignore) {
                         // deleted while fetching
