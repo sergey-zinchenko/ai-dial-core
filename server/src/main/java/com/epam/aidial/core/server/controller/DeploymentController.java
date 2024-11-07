@@ -66,12 +66,20 @@ public class DeploymentController {
 
     public static Future<Deployment> selectDeployment(ProxyContext context, String id) {
         Deployment deployment = context.getConfig().selectDeployment(id);
-
         if (deployment != null) {
             if (!DeploymentController.hasAccess(context, deployment)) {
                 return Future.failedFuture(new PermissionDeniedException("Forbidden deployment: " + id));
             } else {
-                return Future.succeededFuture(deployment);
+                try {
+                    if (deployment instanceof Application application) {
+                        Application applicationWithFilteredClientProperties =
+                                CustomApplicationPropertiesUtils.filterCustomClientProperties(context.getConfig(), application);
+                        return Future.succeededFuture(applicationWithFilteredClientProperties);
+                    }
+                    return Future.succeededFuture(deployment);
+                } catch (Throwable e) {
+                    return Future.failedFuture(e);
+                }
             }
         }
 
