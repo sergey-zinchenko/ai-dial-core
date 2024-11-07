@@ -54,10 +54,10 @@ public class CustomApplicationPropertiesUtils {
         if (!validationResult.isEmpty()) {
             throw new IllegalArgumentException("Invalid custom properties: " + validationResult);
         }
-        DialMetaCollectorValidator.StringStringMapCollector clientPropsCollector =
+        DialMetaCollectorValidator.StringStringMapCollector propsCollector =
                 (DialMetaCollectorValidator.StringStringMapCollector) collectorContext.getCollectorMap().get(collectorName);
         Map<String, Object> result = new HashMap<>();
-        for (String propertyName : clientPropsCollector.collect()) {
+        for (String propertyName : propsCollector.collect()) {
             result.put(propertyName, customProps.get(propertyName));
         }
         return result;
@@ -106,28 +106,32 @@ public class CustomApplicationPropertiesUtils {
         }
     }
 
+
     private static class DialMetaCollectorValidator extends BaseJsonValidator {
         private static final ErrorMessageType ERROR_MESSAGE_TYPE = () -> "dial:meta";
+
+        String propertyKindString;
 
         public DialMetaCollectorValidator(SchemaLocation schemaLocation, JsonNodePath evaluationPath, JsonNode schemaNode,
                                           JsonSchema parentSchema, Keyword keyword,
                                           ValidationContext validationContext, boolean suppressSubSchemaRetrieval) {
             super(schemaLocation, evaluationPath, schemaNode, parentSchema, ERROR_MESSAGE_TYPE, keyword, validationContext, suppressSubSchemaRetrieval);
+            propertyKindString = schemaNode.get("dial:property-kind").asText();
         }
 
         @Override
         public Set<ValidationMessage> validate(ExecutionContext executionContext, JsonNode jsonNode, JsonNode jsonNode1, JsonNodePath jsonNodePath) {
+
             CollectorContext collectorContext = executionContext.getCollectorContext();
             StringStringMapCollector serverPropsCollector = (StringStringMapCollector) collectorContext.getCollectorMap()
                     .computeIfAbsent("server", k -> new StringStringMapCollector());
             StringStringMapCollector clientPropsCollector = (StringStringMapCollector) collectorContext
                     .getCollectorMap().computeIfAbsent("client", k -> new StringStringMapCollector());
             String propertyName = jsonNodePath.getName(-1);
-            JsonNode propertyKind = jsonNode1.get("dial:property-kind");
-            if (Objects.equals(propertyKind.asText(), "server")) {
-                serverPropsCollector.combine(propertyName);
+            if (Objects.equals(propertyKindString, "server")) {
+                serverPropsCollector.combine(List.of(propertyName));
             } else {
-                clientPropsCollector.combine(propertyName);
+                clientPropsCollector.combine(List.of(propertyName));
             }
             return Set.of();
         }
