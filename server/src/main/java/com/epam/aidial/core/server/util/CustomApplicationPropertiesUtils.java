@@ -2,6 +2,9 @@ package com.epam.aidial.core.server.util;
 
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
+import com.epam.aidial.core.server.Proxy;
+import com.epam.aidial.core.server.ProxyContext;
+import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.networknt.schema.BaseJsonValidator;
@@ -60,23 +63,33 @@ public class CustomApplicationPropertiesUtils {
         return result;
     }
 
-    public Map<String, Object> getCustomClientProperties(Config config, Application application) throws JsonProcessingException {
+    public Map<String, Object> getCustomServerProperties(Config config, Application application) throws JsonProcessingException {
         String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
         if (customApplicationSchema == null) {
             return Map.of();
         }
         return filterPropertiesWithCollector(application.getCustomProperties(),
-                customApplicationSchema, "client");
+                customApplicationSchema, "server");
     }
 
-    public void filterCustomServerProperties(Config config, Application application) throws JsonProcessingException {
+    public Application filterCustomClientProperties(Config config, Application application) throws JsonProcessingException {
         String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
         if (customApplicationSchema == null) {
-            return;
+            return application;
         }
+        Application copy = new Application(application);
         Map<String, Object> appWithClientOptionsOnly = filterPropertiesWithCollector(application.getCustomProperties(),
-                customApplicationSchema, "server");
-        application.setCustomProperties(appWithClientOptionsOnly);
+                customApplicationSchema, "client");
+        copy.setCustomProperties(appWithClientOptionsOnly);
+        return copy;
+    }
+
+    public Application filterCustomClientProperties(ProxyContext ctx, ResourceDescriptor resource, Application application) throws JsonProcessingException {
+        Proxy proxy = ctx.getProxy();
+        if (!proxy.getAccessService().hasWriteAccess(resource, ctx)) {
+            application = CustomApplicationPropertiesUtils.filterCustomClientProperties(ctx.getConfig(), application);
+        }
+        return application;
     }
 
     private static class DialMetaKeyword implements Keyword {
@@ -109,7 +122,8 @@ public class CustomApplicationPropertiesUtils {
             StringStringMapCollector clientPropsCollector = (StringStringMapCollector) collectorContext
                     .getCollectorMap().computeIfAbsent("client", k -> new StringStringMapCollector());
             String propertyName = jsonNodePath.getName(-1);
-            if (Objects.equals(jsonNode.get("dial:property-kind").asText(), "server")) {
+            JsonNode propertyKind = jsonNode1.get("dial:property-kind");
+            if (Objects.equals(propertyKind.asText(), "server")) {
                 serverPropsCollector.combine(propertyName);
             } else {
                 clientPropsCollector.combine(propertyName);

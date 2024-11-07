@@ -1,5 +1,7 @@
 package com.epam.aidial.core.server.controller;
 
+
+import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.config.Features;
@@ -12,6 +14,7 @@ import com.epam.aidial.core.server.data.ListData;
 import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
+import com.epam.aidial.core.server.util.CustomApplicationPropertiesUtils;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
@@ -92,7 +95,9 @@ public class DeploymentController {
                 throw new PermissionDeniedException();
             }
 
-            return proxy.getApplicationService().getApplication(resource).getValue();
+            Application app =  proxy.getApplicationService().getApplication(resource).getValue();
+            app = CustomApplicationPropertiesUtils.filterCustomClientProperties(context, resource, app);
+            return app;
         }, false);
     }
 

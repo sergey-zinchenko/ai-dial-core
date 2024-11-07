@@ -10,11 +10,13 @@ import com.epam.aidial.core.server.data.SharedResourcesResponse;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.util.BucketBuilder;
+import com.epam.aidial.core.server.util.CustomApplicationPropertiesUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.blobstore.BlobStorageUtil;
 import com.epam.aidial.core.storage.data.MetadataBase;
 import com.epam.aidial.core.storage.data.NodeType;
+import com.epam.aidial.core.storage.data.ResourceAccessType;
 import com.epam.aidial.core.storage.data.ResourceFolderMetadata;
 import com.epam.aidial.core.storage.data.ResourceItemMetadata;
 import com.epam.aidial.core.storage.http.HttpException;
@@ -24,6 +26,7 @@ import com.epam.aidial.core.storage.service.LockService;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
@@ -98,7 +101,7 @@ public class ApplicationService {
         return false;
     }
 
-    public List<Application> getAllApplications(ProxyContext context) {
+    public List<Application> getAllApplications(ProxyContext context) throws JsonProcessingException {
         List<Application> applications = new ArrayList<>();
         applications.addAll(getPrivateApplications(context));
         applications.addAll(getSharedApplications(context));
@@ -106,15 +109,15 @@ public class ApplicationService {
         return applications;
     }
 
-    public List<Application> getPrivateApplications(ProxyContext context) {
+    public List<Application> getPrivateApplications(ProxyContext context) throws JsonProcessingException {
         String location = BucketBuilder.buildInitiatorBucket(context);
         String bucket = encryptionService.encrypt(location);
 
         ResourceDescriptor folder = ResourceDescriptorFactory.fromDecoded(ResourceTypes.APPLICATION, bucket, location, null);
-        return getApplications(folder);
+        return getApplications(folder, context);
     }
 
-    public List<Application> getSharedApplications(ProxyContext context) {
+    public List<Application> getSharedApplications(ProxyContext context) throws JsonProcessingException {
         String location = BucketBuilder.buildInitiatorBucket(context);
         String bucket = encryptionService.encrypt(location);
 
@@ -126,24 +129,28 @@ public class ApplicationService {
         Set<MetadataBase> metadata = response.getResources();
 
         List<Application> list = new ArrayList<>();
-
+        boolean hasAdminAccess = context.getProxy().getAccessService().hasAdminAccess(context);
         for (MetadataBase meta : metadata) {
             ResourceDescriptor resource = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
 
             if (meta instanceof ResourceItemMetadata) {
-                list.add(getApplication(resource).getValue());
+                Application application = getApplication(resource).getValue();
+                if (!meta.getPermissions().contains(ResourceAccessType.WRITE) && !hasAdminAccess) {
+                    application = CustomApplicationPropertiesUtils.filterCustomClientProperties(context, resource, application);
+                }
+                list.add(application);
             } else {
-                list.addAll(getApplications(resource));
+                list.addAll(getApplications(resource, context));
             }
         }
 
         return list;
     }
 
-    public List<Application> getPublicApplications(ProxyContext context) {
+    public List<Application> getPublicApplications(ProxyContext context) throws JsonProcessingException {
         ResourceDescriptor folder = ResourceDescriptorFactory.fromDecoded(ResourceTypes.APPLICATION, ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PUBLIC_LOCATION, null);
         AccessService accessService = context.getProxy().getAccessService();
-        return getApplications(folder, page -> accessService.filterForbidden(context, folder, page));
+        return getApplications(folder, page -> accessService.filterForbidden(context, folder, page), context);
     }
 
     public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource) {
@@ -164,19 +171,21 @@ public class ApplicationService {
         return Pair.of(meta, application);
     }
 
-    public List<Application> getApplications(ResourceDescriptor resource) {
+    public List<Application> getApplications(ResourceDescriptor resource, ProxyContext ctx) throws JsonProcessingException {
         Consumer<ResourceFolderMetadata> noop = ignore -> {
         };
-        return getApplications(resource, noop);
+        return getApplications(resource, noop, ctx);
     }
 
-    public List<Application> getApplications(ResourceDescriptor resource, Consumer<ResourceFolderMetadata> filter) {
+    public List<Application> getApplications(ResourceDescriptor resource,
+                                             Consumer<ResourceFolderMetadata> filter, ProxyContext ctx) throws JsonProcessingException {
         if (!resource.isFolder() || resource.getType() != ResourceTypes.APPLICATION) {
             throw new IllegalArgumentException("Invalid application folder: " + resource.getUrl());
         }
 
         List<Application> applications = new ArrayList<>();
         String nextToken = null;
+        boolean hasAdminAccess = ctx.getProxy().getAccessService().hasAdminAccess(ctx);
 
         do {
             ResourceFolderMetadata folder = resourceService.getFolderMetadata(resource, nextToken, PAGE_SIZE, true);
@@ -190,7 +199,11 @@ public class ApplicationService {
                 if (meta.getNodeType() == NodeType.ITEM && meta.getResourceType() == ResourceTypes.APPLICATION) {
                     try {
                         ResourceDescriptor item = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
+
                         Application application = getApplication(item).getValue();
+                        if (!meta.getPermissions().contains(ResourceAccessType.WRITE) && !hasAdminAccess) {
+                            application = CustomApplicationPropertiesUtils.filterCustomClientProperties(ctx.getConfig(), application);
+                        }
                         applications.add(application);
                     } catch (ResourceNotFoundException ignore) {
                         // deleted while fetching

@@ -13,11 +13,13 @@ import com.epam.aidial.core.server.service.ApplicationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.util.BucketBuilder;
+import com.epam.aidial.core.server.util.CustomApplicationPropertiesUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
@@ -58,13 +60,14 @@ public class ApplicationController {
         return Future.succeededFuture();
     }
 
-    public Future<?> getApplications() {
+    public Future<?> getApplications() throws JsonProcessingException {
         Config config = context.getConfig();
         List<ApplicationData> list = new ArrayList<>();
 
         for (Application application : config.getApplications().values()) {
             if (DeploymentController.hasAccess(context, application)) {
-                ApplicationData data = ApplicationUtil.mapApplication(application);
+                Application applicationWithFilteredClientProperties = CustomApplicationPropertiesUtils.filterCustomClientProperties(config, application);
+                ApplicationData data = ApplicationUtil.mapApplication(applicationWithFilteredClientProperties);
                 list.add(data);
             }
         }

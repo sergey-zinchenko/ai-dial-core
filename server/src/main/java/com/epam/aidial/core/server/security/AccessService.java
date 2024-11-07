@@ -61,6 +61,15 @@ public class AccessService {
         return permissions.get(resource).contains(ResourceAccessType.READ);
     }
 
+    public boolean hasWriteAccess(ResourceDescriptor resource, ProxyContext context) {
+        if (hasAdminAccess(context)) {
+            return true;
+        }
+        Map<ResourceDescriptor, Set<ResourceAccessType>> permissions =
+                lookupPermissions(Set.of(resource), context, Set.of(ResourceAccessType.WRITE));
+        return permissions.get(resource).contains(ResourceAccessType.WRITE);
+    }
+
     /**
      * Checks if USER has public access to the provided resources.
      * This method also checks admin privileges.
