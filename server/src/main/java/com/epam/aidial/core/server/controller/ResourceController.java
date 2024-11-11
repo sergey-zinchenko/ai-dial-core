@@ -138,7 +138,7 @@ public class ResourceController extends AccessControlBaseController {
 
     private Future<Pair<ResourceItemMetadata, String>> getApplicationData(ResourceDescriptor descriptor, boolean hasWriteAccess) {
         return vertx.executeBlocking(() -> {
-            Pair<ResourceItemMetadata, Application> result = applicationService.getApplication(descriptor);
+            Pair<ResourceItemMetadata, Application> result = applicationService.getApplication(descriptor, context);
             ResourceItemMetadata meta = result.getKey();
 
             Application application = result.getValue();

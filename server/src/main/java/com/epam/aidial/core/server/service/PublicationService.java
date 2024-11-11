@@ -23,6 +23,7 @@ import com.epam.aidial.core.storage.resource.ResourceType;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -140,7 +141,7 @@ public class PublicationService {
         return publication;
     }
 
-    public Publication createPublication(ProxyContext context, Publication publication) {
+    public Publication createPublication(ProxyContext context, Publication publication) throws JsonProcessingException {
         String bucketLocation = BucketBuilder.buildInitiatorBucket(context);
         String bucket = encryption.encrypt(bucketLocation);
         boolean isAdmin = accessService.hasAdminAccess(context);
@@ -213,7 +214,7 @@ public class PublicationService {
     }
 
     @Nullable
-    public Publication approvePublication(ResourceDescriptor resource) {
+    public Publication approvePublication(ResourceDescriptor resource) throws JsonProcessingException {
         Publication publication = getPublication(resource);
         if (publication.getStatus() != Publication.Status.PENDING) {
             throw new ResourceNotFoundException("Publication is already finalized: " + resource.getUrl());
@@ -309,7 +310,7 @@ public class PublicationService {
 
     private void prepareAndValidatePublicationRequest(ProxyContext context, Publication publication,
                                                       String bucketName, String bucketLocation,
-                                                      boolean isAdmin) {
+                                                      boolean isAdmin) throws JsonProcessingException {
         String targetFolder = publication.getTargetFolder();
         if (targetFolder == null) {
             throw new IllegalArgumentException("Publication \"targetFolder\" is missing");
@@ -433,7 +434,7 @@ public class PublicationService {
     }
 
     private void validateResourceForDeletion(Publication.Resource resource, String targetFolder, Set<String> urls,
-                                             String bucketName, boolean isAdmin) {
+                                             String bucketName, boolean isAdmin) throws JsonProcessingException {
         String targetUrl = resource.getTargetUrl();
         ResourceDescriptor target = ResourceDescriptorFactory.fromPublicUrl(targetUrl);
         verifyResourceType(target);
@@ -456,7 +457,7 @@ public class PublicationService {
         }
 
         if (target.getType() == ResourceTypes.APPLICATION && !isAdmin) {
-            Application application = applicationService.getApplication(target).getValue();
+            Application application = applicationService.getApplication(target, null).getValue();
             if (application.getFunction() != null && !application.getFunction().getAuthorBucket().equals(bucketName)) {
                 throw new IllegalArgumentException("Target application has a different author: " + targetUrl);
             }
@@ -511,7 +512,7 @@ public class PublicationService {
         }
     }
 
-    private void copySourceToReviewResources(List<Publication.Resource> resources) {
+    private void copySourceToReviewResources(List<Publication.Resource> resources) throws JsonProcessingException {
         Map<String, String> replacementLinks = new HashMap<>();
 
         for (Publication.Resource resource : resources) {
@@ -551,7 +552,7 @@ public class PublicationService {
         }
     }
 
-    private void copyReviewToTargetResources(List<Publication.Resource> resources) {
+    private void copyReviewToTargetResources(List<Publication.Resource> resources) throws JsonProcessingException {
         Map<String, String> replacementLinks = new HashMap<>();
 
         for (Publication.Resource resource : resources) {

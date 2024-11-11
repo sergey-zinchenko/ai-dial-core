@@ -13,7 +13,7 @@ import com.epam.aidial.core.server.service.ApplicationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.util.BucketBuilder;
-import com.epam.aidial.core.server.util.CustomApplicationPropertiesUtils;
+import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.http.HttpException;
@@ -48,9 +48,14 @@ public class ApplicationController {
         DeploymentController.selectDeployment(context, applicationId)
                 .map(deployment -> {
                     if (deployment instanceof Application application) {
+                        try {
+                            application =
+                                    CustomApplicationUtils.filterCustomClientProperties(context.getConfig(), application);
+                        } catch (JsonProcessingException e) {
+                            throw new RuntimeException(e);
+                        }
                         return application;
                     }
-
                     throw new ResourceNotFoundException("Application is not found: " + applicationId);
                 })
                 .map(ApplicationUtil::mapApplication)
@@ -66,8 +71,8 @@ public class ApplicationController {
 
         for (Application application : config.getApplications().values()) {
             if (DeploymentController.hasAccess(context, application)) {
-                Application applicationWithFilteredClientProperties = CustomApplicationPropertiesUtils.filterCustomClientProperties(config, application);
-                ApplicationData data = ApplicationUtil.mapApplication(applicationWithFilteredClientProperties);
+                application = CustomApplicationUtils.filterCustomClientProperties(config, application);
+                ApplicationData data = ApplicationUtil.mapApplication(application);
                 list.add(data);
             }
         }
@@ -125,7 +130,7 @@ public class ApplicationController {
                     String url = ProxyUtil.convertToObject(body, ResourceLink.class).url();
                     ResourceDescriptor resource = decodeUrl(url);
                     checkAccess(resource);
-                    return vertx.executeBlocking(() -> applicationService.getApplicationLogs(resource), false);
+                    return vertx.executeBlocking(() -> applicationService.getApplicationLogs(resource, context), false);
                 })
                 .onSuccess(logs -> context.respond(HttpStatus.OK, logs))
                 .onFailure(this::respondError);

@@ -5,7 +5,7 @@ import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.function.BaseRequestFunction;
-import com.epam.aidial.core.server.util.CustomApplicationPropertiesUtils;
+import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -42,7 +42,7 @@ public class AppendCustomApplicationPropertiesFn extends BaseRequestFunction<Obj
             return false;
         }
         boolean appended = false;
-        Map<String, Object> props = CustomApplicationPropertiesUtils.getCustomServerProperties(context.getConfig(), application);
+        Map<String, Object> props = CustomApplicationUtils.getCustomServerProperties(context.getConfig(), application);
         ObjectNode customAppPropertiesNode = ProxyUtil.MAPPER.createObjectNode();
         for (Map.Entry<String, Object> entry : props.entrySet()) {
             customAppPropertiesNode.put(entry.getKey(), entry.getValue().toString());

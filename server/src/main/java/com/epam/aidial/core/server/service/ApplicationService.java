@@ -10,13 +10,12 @@ import com.epam.aidial.core.server.data.SharedResourcesResponse;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.util.BucketBuilder;
-import com.epam.aidial.core.server.util.CustomApplicationPropertiesUtils;
+import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.blobstore.BlobStorageUtil;
 import com.epam.aidial.core.storage.data.MetadataBase;
 import com.epam.aidial.core.storage.data.NodeType;
-import com.epam.aidial.core.storage.data.ResourceAccessType;
 import com.epam.aidial.core.storage.data.ResourceFolderMetadata;
 import com.epam.aidial.core.storage.data.ResourceItemMetadata;
 import com.epam.aidial.core.storage.http.HttpException;
@@ -134,8 +133,8 @@ public class ApplicationService {
             ResourceDescriptor resource = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
 
             if (meta instanceof ResourceItemMetadata) {
-                Application application = getApplication(resource).getValue();
-                application = CustomApplicationPropertiesUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
+                Application application = getApplication(resource, context).getValue();
+                application = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
                 list.add(application);
             } else {
                 list.addAll(getApplications(resource, context));
@@ -151,7 +150,7 @@ public class ApplicationService {
         return getApplications(folder, page -> accessService.filterForbidden(context, folder, page), context);
     }
 
-    public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource) {
+    public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource, ProxyContext context) throws JsonProcessingException {
         verifyApplication(resource);
         Pair<ResourceItemMetadata, String> result = resourceService.getResourceWithMetadata(resource);
 
@@ -164,6 +163,10 @@ public class ApplicationService {
 
         if (application == null) {
             throw new ResourceNotFoundException("Application is not found: " + resource.getUrl());
+        }
+
+        if (context != null) {
+            application = CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), application);
         }
 
         return Pair.of(meta, application);
@@ -196,8 +199,8 @@ public class ApplicationService {
                 if (meta.getNodeType() == NodeType.ITEM && meta.getResourceType() == ResourceTypes.APPLICATION) {
                     try {
                         ResourceDescriptor item = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
-                        Application application = getApplication(item).getValue();
-                        application = CustomApplicationPropertiesUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
+                        Application application = getApplication(item, ctx).getValue();
+                        application = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
                         applications.add(application);
                     } catch (ResourceNotFoundException ignore) {
                         // deleted while fetching
@@ -278,11 +281,11 @@ public class ApplicationService {
         }
     }
 
-    public void copyApplication(ResourceDescriptor source, ResourceDescriptor destination, boolean overwrite, Consumer<Application> consumer) {
+    public void copyApplication(ResourceDescriptor source, ResourceDescriptor destination, boolean overwrite, Consumer<Application> consumer) throws JsonProcessingException {
         verifyApplication(source);
         verifyApplication(destination);
 
-        Application application = getApplication(source).getValue();
+        Application application = getApplication(source, null).getValue();
         Application.Function function = application.getFunction();
 
         EtagHeader etag = overwrite ? EtagHeader.ANY : EtagHeader.NEW_ONLY;
@@ -404,11 +407,11 @@ public class ApplicationService {
         return result.getValue();
     }
 
-    public Application.Logs getApplicationLogs(ResourceDescriptor resource) {
+    public Application.Logs getApplicationLogs(ResourceDescriptor resource, ProxyContext context) throws JsonProcessingException {
         verifyApplication(resource);
         controller.verifyActive();
 
-        Application application = getApplication(resource).getValue();
+        Application application = getApplication(resource, context).getValue();
 
         if (application.getFunction() == null || application.getFunction().getStatus() != Application.Function.Status.STARTED) {
             throw new HttpException(HttpStatus.CONFLICT, "Application is not started: " + resource.getUrl());
@@ -504,7 +507,7 @@ public class ApplicationService {
         return null;
     }
 
-    private Void launchApplication(ProxyContext context, ResourceDescriptor resource) {
+    private Void launchApplication(ProxyContext context, ResourceDescriptor resource) throws JsonProcessingException {
         // right now there is no lock watchdog mechanism
         // this lock can expire before this operation is finished
         // for extra safety the controller timeout is less than lock timeout
@@ -513,7 +516,7 @@ public class ApplicationService {
                 throw new IllegalStateException("Application function is locked");
             }
 
-            Application application = getApplication(resource).getValue();
+            Application application = getApplication(resource, context).getValue();
             Application.Function function = application.getFunction();
 
             if (function == null) {
@@ -558,7 +561,7 @@ public class ApplicationService {
         }
     }
 
-    private Void terminateApplication(ResourceDescriptor resource, String error) {
+    private Void terminateApplication(ResourceDescriptor resource, String error) throws JsonProcessingException {
         try (LockService.Lock lock = lockService.tryLock(deploymentLockKey(resource))) {
             if (lock == null) {
                 return null;
@@ -567,7 +570,7 @@ public class ApplicationService {
             Application application;
 
             try {
-                application = getApplication(resource).getValue();
+                application = getApplication(resource, null).getValue();
             } catch (ResourceNotFoundException e) {
                 application = null;
             }

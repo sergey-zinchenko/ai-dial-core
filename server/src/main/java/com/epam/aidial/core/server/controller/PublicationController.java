@@ -23,6 +23,7 @@ import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.service.LockService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import lombok.RequiredArgsConstructor;
@@ -119,7 +120,13 @@ public class PublicationController {
                     checkAccess(resource, false);
                     return vertx.executeBlocking(() ->
                             lockService.underBucketLock(ResourceDescriptor.PUBLIC_LOCATION,
-                                    () -> publicationService.approvePublication(resource)), false);
+                                    () -> {
+                                        try {
+                                            return publicationService.approvePublication(resource);
+                                        } catch (JsonProcessingException e) {
+                                            throw new RuntimeException(e);
+                                        }
+                                    }), false);
                 })
                 .onSuccess(publication -> context.respond(HttpStatus.OK, publication))
                 .onFailure(error -> respondError("Can't approve publication", error));

@@ -14,7 +14,7 @@ import com.epam.aidial.core.server.data.ListData;
 import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
-import com.epam.aidial.core.server.util.CustomApplicationPropertiesUtils;
+import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
@@ -72,9 +72,9 @@ public class DeploymentController {
             } else {
                 try {
                     if (deployment instanceof Application application) {
-                        Application applicationWithFilteredClientProperties =
-                                CustomApplicationPropertiesUtils.filterCustomClientProperties(context.getConfig(), application);
-                        return Future.succeededFuture(applicationWithFilteredClientProperties);
+                        application =
+                                CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), application);
+                        return Future.succeededFuture(application);
                     }
                     return Future.succeededFuture(deployment);
                 } catch (Throwable e) {
@@ -103,8 +103,8 @@ public class DeploymentController {
                 throw new PermissionDeniedException();
             }
 
-            Application app =  proxy.getApplicationService().getApplication(resource).getValue();
-            app = CustomApplicationPropertiesUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
+            Application app =  proxy.getApplicationService().getApplication(resource, context).getValue();
+            app = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
             return app;
         }, false);
     }
