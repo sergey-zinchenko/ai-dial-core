@@ -7,11 +7,13 @@ import com.epam.aidial.core.server.data.Conversation;
 import com.epam.aidial.core.server.data.Prompt;
 import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.security.AccessService;
+import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.service.ApplicationService;
 import com.epam.aidial.core.server.service.InvitationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.service.ShareService;
+import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.data.MetadataBase;
@@ -22,6 +24,7 @@ import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.service.LockService;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpHeaders;
@@ -44,6 +47,8 @@ public class ResourceController extends AccessControlBaseController {
     private final InvitationService invitationService;
     private final boolean metadata;
     private final AccessService accessService;
+    private final ResourceService resourceService;
+    private final EncryptionService encryptionService;
 
     public ResourceController(Proxy proxy, ProxyContext context, boolean metadata) {
         // PUT and DELETE require write access, GET - read
@@ -55,6 +60,8 @@ public class ResourceController extends AccessControlBaseController {
         this.accessService = proxy.getAccessService();
         this.lockService = proxy.getLockService();
         this.invitationService = proxy.getInvitationService();
+        this.resourceService = proxy.getResourceService();
+        this.encryptionService = proxy.getEncryptionService();
         this.metadata = metadata;
     }
 
@@ -163,6 +170,20 @@ public class ResourceController extends AccessControlBaseController {
         }, false);
     }
 
+    private void validateCustomApplication(Application application) {
+        try {
+            List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(context.getConfig(), application, encryptionService,
+                    resourceService);
+            files.stream().filter(resource -> !(resourceService.hasResource(resource)
+                            && accessService.hasReadAccess(resource, context)))
+                    .findAny().ifPresent(file -> {
+                        throw new PermissionDeniedException("No read access to file: " + file.getUrl());
+                    });
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Invalid application: " + e.getMessage());
+        }
+    }
+
     private Future<?> putResource(ResourceDescriptor descriptor) {
         if (descriptor.isFolder()) {
             return context.respond(HttpStatus.BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
@@ -198,6 +219,7 @@ public class ResourceController extends AccessControlBaseController {
             responseFuture =  requestFuture.compose(pair -> {
                 EtagHeader etag = pair.getKey();
                 Application application = ProxyUtil.convertToObject(pair.getValue(), Application.class);
+                validateCustomApplication(application);
                 return vertx.executeBlocking(() -> applicationService.putApplication(descriptor, etag, application).getKey(), false);
             });
         } else {

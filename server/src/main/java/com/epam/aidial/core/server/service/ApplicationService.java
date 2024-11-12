@@ -216,16 +216,7 @@ public class ApplicationService {
         return applications;
     }
 
-    private void validateCustomApplication(Application application, ProxyContext context) throws JsonProcessingException {
-        Proxy proxy = context.getProxy();
-        List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(context.getConfig(), application, proxy.getEncryptionService(),
-                resourceService);
-        files.stream().filter(resource -> !(resourceService.hasResource(resource)
-                        && proxy.getAccessService().hasReadAccess(resource, context)))
-                .findAny().ifPresent(file -> {
-            throw new PermissionDeniedException("No read access to file: " + file.getUrl());
-        });
-    }
+
 
     public Pair<ResourceItemMetadata, Application> putApplication(ResourceDescriptor resource, EtagHeader etag, Application application) {
         prepareApplication(resource, application);

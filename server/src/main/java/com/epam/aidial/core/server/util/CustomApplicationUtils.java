@@ -133,7 +133,7 @@ public class CustomApplicationUtils {
         ListCollector<String> propsCollector =
                 (ListCollector<String>) collectorContext.getCollectorMap().get("file");
         List<ResourceDescriptor> result = new ArrayList<>();
-        for (String item: propsCollector.collect()) {
+        for (String item : propsCollector.collect()) {
             ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
             if (!resourceService.hasResource(descriptor)) {
                 throw new IllegalArgumentException("Resource not found: " + item);
