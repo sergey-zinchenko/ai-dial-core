@@ -1,7 +1,9 @@
 package com.epam.aidial.core.server.service;
 
 import com.epam.aidial.core.config.Application;
+import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Features;
+import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.controller.ApplicationUtil;
 import com.epam.aidial.core.server.data.ListSharedResourcesRequest;
@@ -214,9 +216,19 @@ public class ApplicationService {
         return applications;
     }
 
+    private void validateCustomApplication(Application application, ProxyContext context) throws JsonProcessingException {
+        Proxy proxy = context.getProxy();
+        List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(context.getConfig(), application, proxy.getEncryptionService(),
+                resourceService);
+        files.stream().filter(resource -> !(resourceService.hasResource(resource)
+                        && proxy.getAccessService().hasReadAccess(resource, context)))
+                .findAny().ifPresent(file -> {
+            throw new PermissionDeniedException("No read access to file: " + file.getUrl());
+        });
+    }
+
     public Pair<ResourceItemMetadata, Application> putApplication(ResourceDescriptor resource, EtagHeader etag, Application application) {
         prepareApplication(resource, application);
-
         ResourceItemMetadata meta = resourceService.computeResource(resource, etag, json -> {
             Application existing = ProxyUtil.convertToObject(json, Application.class);
             Application.Function function = application.getFunction();

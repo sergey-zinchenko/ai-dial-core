@@ -35,7 +35,7 @@ public class Application extends Deployment {
     }
 
     @JsonAnyGetter
-    public  Map<String, Object> getCustomProperty() {
+    public  Map<String, Object> getCustomProperties() {
         return customProperties;
     }
 
