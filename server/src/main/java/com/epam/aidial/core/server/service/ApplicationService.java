@@ -1,9 +1,7 @@
 package com.epam.aidial.core.server.service;
 
 import com.epam.aidial.core.config.Application;
-import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Features;
-import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.controller.ApplicationUtil;
 import com.epam.aidial.core.server.data.ListSharedResourcesRequest;
@@ -52,7 +50,6 @@ public class ApplicationService {
 
     private static final String DEPLOYMENTS_NAME = "deployments";
     private static final int PAGE_SIZE = 1000;
-
     private final Vertx vertx;
     private final EncryptionService encryptionService;
     private final ResourceService resourceService;
@@ -426,8 +423,9 @@ public class ApplicationService {
     private void prepareApplication(ResourceDescriptor resource, Application application) {
         verifyApplication(resource);
 
-        if (application.getEndpoint() == null && application.getFunction() == null) {
-            throw new IllegalArgumentException("Application endpoint or function must be provided");
+        if (application.getEndpoint() == null && application.getFunction() == null
+                && application.getCustomAppSchemaId() == null) {
+            throw new IllegalArgumentException("Application endpoint or function or schema must be provided");
         }
 
         application.setName(resource.getUrl());

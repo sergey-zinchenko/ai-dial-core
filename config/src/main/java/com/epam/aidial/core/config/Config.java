@@ -60,6 +60,10 @@ public class Config {
         if (schemaId == null) {
             return null;
         }
-        return customApplicationSchemas.get(schemaId.toString());
+        String result = customApplicationSchemas.get(schemaId.toString());
+        if (result == null) {
+            throw new IllegalArgumentException("Schema not found for " + schemaId);
+        }
+        return result;
     }
 }

@@ -29,11 +29,15 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
+import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+
+import static com.epam.aidial.core.storage.http.HttpStatus.BAD_REQUEST;
+import static com.epam.aidial.core.storage.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 @Slf4j
 @SuppressWarnings("checkstyle:Indentation")
@@ -79,7 +83,7 @@ public class ResourceController extends AccessControlBaseController {
             return deleteResource(descriptor);
         }
         log.warn("Unsupported HTTP method for accessing resource {}", descriptor.getUrl());
-        return context.respond(HttpStatus.BAD_REQUEST, "Unsupported HTTP method");
+        return context.respond(BAD_REQUEST, "Unsupported HTTP method");
     }
 
     private String getContentType() {
@@ -102,7 +106,7 @@ public class ResourceController extends AccessControlBaseController {
                 throw new IllegalArgumentException("Limit is out of allowed range");
             }
         } catch (Throwable error) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Bad query parameters. Limit must be in [0, 1000] range. Recursive must be true/false");
+            return context.respond(BAD_REQUEST, "Bad query parameters. Limit must be in [0, 1000] range. Recursive must be true/false");
         }
 
         vertx.executeBlocking(() -> service.getMetadata(descriptor, token, limit, recursive), false)
@@ -127,7 +131,7 @@ public class ResourceController extends AccessControlBaseController {
 
     private Future<?> getResource(ResourceDescriptor descriptor, boolean hasWriteAccess) {
         if (descriptor.isFolder()) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
+            return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
         }
 
         Future<Pair<ResourceItemMetadata, String>> responseFuture = (descriptor.getType() == ResourceTypes.APPLICATION)
@@ -174,23 +178,27 @@ public class ResourceController extends AccessControlBaseController {
         try {
             List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(context.getConfig(), application, encryptionService,
                     resourceService);
+            log.error(application.getCustomProperties().toString());
             files.stream().filter(resource -> !(resourceService.hasResource(resource)
                             && accessService.hasReadAccess(resource, context)))
                     .findAny().ifPresent(file -> {
-                        throw new PermissionDeniedException("No read access to file: " + file.getUrl());
+                        throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
                     });
+            CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), application);
+        } catch (ValidationException | IllegalArgumentException e) {
+            throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("Invalid application: " + e.getMessage());
+            throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application validation failed", e);
         }
     }
 
     private Future<?> putResource(ResourceDescriptor descriptor) {
         if (descriptor.isFolder()) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
+            return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
         }
 
         if (!ResourceDescriptorFactory.isValidResourcePath(descriptor)) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Resource name and/or parent folders must not end with .(dot)");
+            return context.respond(BAD_REQUEST, "Resource name and/or parent folders must not end with .(dot)");
         }
 
         int contentLength = ProxyUtil.contentLength(context.getRequest(), 0);
@@ -243,7 +251,7 @@ public class ResourceController extends AccessControlBaseController {
 
     private Future<?> deleteResource(ResourceDescriptor descriptor) {
         if (descriptor.isFolder()) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
+            return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
         }
 
         vertx.executeBlocking(() -> {
@@ -280,7 +288,7 @@ public class ResourceController extends AccessControlBaseController {
         if (error instanceof HttpException exception) {
             context.respond(exception.getStatus(), exception.getMessage());
         } else if (error instanceof IllegalArgumentException) {
-            context.respond(HttpStatus.BAD_REQUEST, error.getMessage());
+            context.respond(BAD_REQUEST, error.getMessage());
         } else if (error instanceof ResourceNotFoundException) {
             context.respond(HttpStatus.NOT_FOUND, "Not found: " + descriptor.getUrl());
         } else if (error instanceof PermissionDeniedException) {

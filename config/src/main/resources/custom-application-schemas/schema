@@ -80,7 +80,7 @@
             ],
             "properties": {
               "format": {
-                "const": "uri"
+                "const": "uri-reference"
               },
               "type": {
                 "const": "string"

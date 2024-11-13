@@ -48,25 +48,34 @@ public class CustomApplicationUtils {
 
     @SuppressWarnings("unchecked")
     private static Map<String, Object> filterPropertiesWithCollector(
-            Map<String, Object> customProps, String schema, String collectorName) throws JsonProcessingException {
-        JsonSchema appSchema = schemaFactory.getSchema(schema);
-        CollectorContext collectorContext = new CollectorContext();
-        String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(customProps);
-        Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
-                e -> e.setCollectorContext(collectorContext));
-        if (!validationResult.isEmpty()) {
-            throw new IllegalArgumentException("Invalid custom properties: " + validationResult);
+            Map<String, Object> customProps, String schema, String collectorName) {
+        try {
+            JsonSchema appSchema = schemaFactory.getSchema(schema);
+            CollectorContext collectorContext = new CollectorContext();
+            String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(customProps);
+            Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
+                    e -> e.setCollectorContext(collectorContext));
+            if (!validationResult.isEmpty()) {
+                throw new CustomAppValidationException("Failed to validate custom app against the schema", validationResult);
+            }
+            ListCollector<String> propsCollector =
+                    (ListCollector<String>) collectorContext.getCollectorMap().get(collectorName);
+            if (propsCollector == null) {
+                return Map.of();
+            }
+            Map<String, Object> result = new HashMap<>();
+            for (String propertyName : propsCollector.collect()) {
+                result.put(propertyName, customProps.get(propertyName));
+            }
+            return result;
+        } catch (CustomAppValidationException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new CustomAppValidationException("Failed to filter custom properties", e);
         }
-        ListCollector<String> propsCollector =
-                (ListCollector<String>) collectorContext.getCollectorMap().get(collectorName);
-        Map<String, Object> result = new HashMap<>();
-        for (String propertyName : propsCollector.collect()) {
-            result.put(propertyName, customProps.get(propertyName));
-        }
-        return result;
     }
 
-    public static Map<String, Object> getCustomServerProperties(Config config, Application application) throws JsonProcessingException {
+    public static Map<String, Object> getCustomServerProperties(Config config, Application application) {
         String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
         if (customApplicationSchema == null) {
             return Map.of();
@@ -75,17 +84,21 @@ public class CustomApplicationUtils {
                 customApplicationSchema, "server");
     }
 
-    public static String getCustomApplicationEndpoint(Config config, Application application) throws JsonProcessingException {
-        String schema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
-        JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
-        JsonNode endpointNode = schemaNode.get("dial:custom-application-type-completion-endpoint");
-        if (endpointNode == null) {
-            throw new IllegalArgumentException("Custom application schema does not contain completion endpoint");
+    public static String getCustomApplicationEndpoint(Config config, Application application) {
+        try {
+            String schema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
+            JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
+            JsonNode endpointNode = schemaNode.get("dial:custom-application-type-completion-endpoint");
+            if (endpointNode == null) {
+                throw new CustomAppValidationException("Custom application schema does not contain completion endpoint");
+            }
+            return endpointNode.asText();
+        } catch (JsonProcessingException e) {
+            throw new CustomAppValidationException("Failed to get custom application endpoint", e);
         }
-        return endpointNode.asText();
     }
 
-    public static Application modifyEndpointForCustomApplication(Config config, Application application) throws JsonProcessingException {
+    public static Application modifyEndpointForCustomApplication(Config config, Application application) {
         String customEndpoint = getCustomApplicationEndpoint(config, application);
         if (customEndpoint == null) {
             return application;
@@ -95,7 +108,7 @@ public class CustomApplicationUtils {
         return copy;
     }
 
-    public static Application filterCustomClientProperties(Config config, Application application) throws JsonProcessingException {
+    public static Application filterCustomClientProperties(Config config, Application application) {
         String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
         if (customApplicationSchema == null) {
             return application;
@@ -108,7 +121,7 @@ public class CustomApplicationUtils {
     }
 
     public static Application filterCustomClientPropertiesWhenNoWriteAccess(ProxyContext ctx, ResourceDescriptor resource,
-                                                                     Application application) throws JsonProcessingException {
+                                                                            Application application) {
         if (!ctx.getProxy().getAccessService().hasWriteAccess(resource, ctx)) {
             application = filterCustomClientProperties(ctx.getConfig(), application);
         }
@@ -117,30 +130,36 @@ public class CustomApplicationUtils {
 
     @SuppressWarnings("unchecked")
     public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
-                                        ResourceService resourceService) throws JsonProcessingException {
-        String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
-        if (customApplicationSchema == null) {
-            return List.of();
-        }
-        JsonSchema appSchema = schemaFactory.getSchema(customApplicationSchema);
-        CollectorContext collectorContext = new CollectorContext();
-        String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(application.getCustomProperties());
-        Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
-                e -> e.setCollectorContext(collectorContext));
-        if (!validationResult.isEmpty()) {
-            throw new IllegalArgumentException("Invalid custom properties: " + validationResult);
-        }
-        ListCollector<String> propsCollector =
-                (ListCollector<String>) collectorContext.getCollectorMap().get("file");
-        List<ResourceDescriptor> result = new ArrayList<>();
-        for (String item : propsCollector.collect()) {
-            ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
-            if (!resourceService.hasResource(descriptor)) {
-                throw new IllegalArgumentException("Resource not found: " + item);
+                                                    ResourceService resourceService) {
+        try {
+            String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
+            if (customApplicationSchema == null) {
+                return List.of();
             }
-            result.add(descriptor);
+            JsonSchema appSchema = schemaFactory.getSchema(customApplicationSchema);
+            CollectorContext collectorContext = new CollectorContext();
+            String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(application.getCustomProperties());
+            Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
+                    e -> e.setCollectorContext(collectorContext));
+            if (!validationResult.isEmpty()) {
+                throw new CustomAppValidationException("Failed to validate custom app against the schema", validationResult);
+            }
+            ListCollector<String> propsCollector =
+                    (ListCollector<String>) collectorContext.getCollectorMap().get("file");
+            List<ResourceDescriptor> result = new ArrayList<>();
+            for (String item : propsCollector.collect()) {
+                ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
+                if (!resourceService.hasResource(descriptor)) {
+                    throw new CustomAppValidationException("Resource listed as dependent to the application not found or inaccessable: " + item);
+                }
+                result.add(descriptor);
+            }
+            return result;
+        } catch (CustomAppValidationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CustomAppValidationException("Failed to obtain list of files attached to the custom app", e);
         }
-        return result;
     }
 
     private static class DialMetaKeyword implements Keyword {
