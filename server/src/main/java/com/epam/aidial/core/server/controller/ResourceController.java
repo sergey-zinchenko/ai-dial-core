@@ -13,6 +13,7 @@ import com.epam.aidial.core.server.service.InvitationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.service.ShareService;
+import com.epam.aidial.core.server.util.CustomAppValidationException;
 import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
@@ -24,7 +25,6 @@ import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.service.LockService;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpHeaders;
@@ -187,7 +187,7 @@ public class ResourceController extends AccessControlBaseController {
             CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), application);
         } catch (ValidationException | IllegalArgumentException e) {
             throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
-        } catch (JsonProcessingException e) {
+        } catch (CustomAppValidationException e) {
             throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application validation failed", e);
         }
     }

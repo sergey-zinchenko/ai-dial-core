@@ -13,13 +13,13 @@ import com.epam.aidial.core.server.service.ApplicationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.util.BucketBuilder;
+import com.epam.aidial.core.server.util.CustomAppValidationException;
 import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
@@ -51,8 +51,8 @@ public class ApplicationController {
                         try {
                             application =
                                     CustomApplicationUtils.filterCustomClientProperties(context.getConfig(), application);
-                        } catch (JsonProcessingException e) {
-                            throw new RuntimeException(e);
+                        } catch (CustomAppValidationException e) {
+                            throw new HttpException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
                         }
                         return application;
                     }
@@ -65,7 +65,7 @@ public class ApplicationController {
         return Future.succeededFuture();
     }
 
-    public Future<?> getApplications() throws JsonProcessingException {
+    public Future<?> getApplications() {
         Config config = context.getConfig();
         List<ApplicationData> list = new ArrayList<>();
 
