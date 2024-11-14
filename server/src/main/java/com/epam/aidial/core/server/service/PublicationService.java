@@ -13,6 +13,7 @@ import com.epam.aidial.core.server.data.Rule;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.util.BucketBuilder;
+import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.data.MetadataBase;
@@ -38,6 +39,7 @@ import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 @RequiredArgsConstructor
@@ -343,6 +345,8 @@ public class PublicationService {
         publication.setCreatedAt(clock.getAsLong());
         publication.setStatus(Publication.Status.PENDING);
 
+        addCustomApplicationRelatedFiles(context, publication);
+
         Set<String> urls = new HashSet<>();
         for (Publication.Resource resource : publication.getResources()) {
             Publication.ResourceAction action = resource.getAction();
@@ -370,6 +374,43 @@ public class PublicationService {
         }
 
         validateRules(publication);
+    }
+
+    private void addCustomApplicationRelatedFiles(ProxyContext context, Publication publication) {
+        List<String> existingUrls = publication.getResources().stream()
+                .map(Publication.Resource::getSourceUrl)
+                .toList();
+
+        List<Publication.Resource> linkedResourcesToPublish = publication.getResources().stream()
+                .filter(resource -> resource.getAction() != Publication.ResourceAction.DELETE)
+                .flatMap(resource -> {
+                    ResourceDescriptor source = ResourceDescriptorFactory.fromPublicUrl(resource.getSourceUrl());
+                    if (source.getType() != ResourceTypes.APPLICATION) {
+                        return Stream.empty();
+                    }
+                    Application application;
+                    try {
+                        application = applicationService.getApplication(source, context).getValue();
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                    if (application.getCustomAppSchemaId() == null) {
+                        return Stream.empty();
+                    }
+                    return CustomApplicationUtils.getFiles(context.getConfig(), application, encryption, resourceService)
+                            .stream()
+                            .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl()))
+                            .map(sourceDescriptor -> new Publication.Resource()
+                                    .setAction(resource.getAction())
+                                    .setSourceUrl(sourceDescriptor.getUrl())
+                                    .setTargetUrl(ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE,
+                                            ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PATH_SEPARATOR,
+                                            sourceDescriptor.getName()).getUrl()));
+                })
+                .toList();
+
+        publication.setResources(Stream.concat(publication.getResources().stream(), linkedResourcesToPublish.stream())
+                .collect(Collectors.toList()));
     }
 
     private void validateResourceForAddition(ProxyContext context, Publication.Resource resource, String targetFolder,

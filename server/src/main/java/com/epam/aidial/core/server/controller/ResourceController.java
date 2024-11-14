@@ -1,6 +1,7 @@
 package com.epam.aidial.core.server.controller;
 
 import com.epam.aidial.core.config.Application;
+import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.data.Conversation;
@@ -176,7 +177,8 @@ public class ResourceController extends AccessControlBaseController {
 
     private void validateCustomApplication(Application application) {
         try {
-            List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(context.getConfig(), application, encryptionService,
+            Config config = context.getConfig();
+            List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService,
                     resourceService);
             log.error(application.getCustomProperties().toString());
             files.stream().filter(resource -> !(resourceService.hasResource(resource)
@@ -184,7 +186,7 @@ public class ResourceController extends AccessControlBaseController {
                     .findAny().ifPresent(file -> {
                         throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
                     });
-            CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), application);
+            CustomApplicationUtils.modifyEndpointForCustomApplication(config, application);
         } catch (ValidationException | IllegalArgumentException e) {
             throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
         } catch (CustomAppValidationException e) {

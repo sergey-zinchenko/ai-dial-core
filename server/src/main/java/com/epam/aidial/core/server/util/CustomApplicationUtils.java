@@ -135,8 +135,7 @@ public class CustomApplicationUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
-                                                    ResourceService resourceService) {
+    public static List<String> getFiles(Config config, Application application) {
         try {
             String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
             if (customApplicationSchema == null) {
@@ -152,20 +151,27 @@ public class CustomApplicationUtils {
             }
             ListCollector<String> propsCollector =
                     (ListCollector<String>) collectorContext.getCollectorMap().get("file");
-            List<ResourceDescriptor> result = new ArrayList<>();
-            for (String item : propsCollector.collect()) {
-                ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
-                if (!resourceService.hasResource(descriptor)) {
-                    throw new CustomAppValidationException("Resource listed as dependent to the application not found or inaccessable: " + item);
-                }
-                result.add(descriptor);
-            }
-            return result;
+            return propsCollector.collect();
         } catch (CustomAppValidationException e) {
             throw e;
         } catch (Exception e) {
             throw new CustomAppValidationException("Failed to obtain list of files attached to the custom app", e);
         }
+    }
+
+
+    public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
+                                                    ResourceService resourceService) {
+        List<String> files = getFiles(config, application);
+        List<ResourceDescriptor> result = new ArrayList<>();
+        for (String item : files) {
+            ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
+            if (!resourceService.hasResource(descriptor)) {
+                throw new CustomAppValidationException("Resource listed as dependent to the application not found or inaccessable: " + item);
+            }
+            result.add(descriptor);
+        }
+        return result;
     }
 
     private static class DialMetaKeyword implements Keyword {
