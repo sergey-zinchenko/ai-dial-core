@@ -614,23 +614,19 @@ public class PublicationService {
             node.fields().forEachRemaining(entry -> replaceLinksInJsonNode(entry.getValue(), replacementLinks, node, entry.getKey()));
         } else if (node.isArray()) {
             for (int i = 0; i < node.size(); i++) {
-                if (node.get(i).isTextual()) {
-                    String text = node.get(i).textValue();
-                    String replacement = replacementLinks.get(text);
+                JsonNode childNode = node.get(i);
+                if (childNode.isTextual()) {
+                    String replacement = replacementLinks.get(childNode.textValue());
                     if (replacement != null) {
                         ((ArrayNode) node).set(i, replacement);
                     }
                 } else {
-                    replaceLinksInJsonNode(node.get(i), replacementLinks, node, String.valueOf(i));
+                    replaceLinksInJsonNode(childNode, replacementLinks, node, String.valueOf(i));
                 }
             }
         } else if (node.isTextual()) {
-            String text = node.textValue();
-            String replacement = replacementLinks.get(text);
-            if (replacement == null) {
-                return;
-            }
-            if (parent.isObject()) {
+            String replacement = replacementLinks.get(node.textValue());
+            if (replacement != null && parent.isObject()) {
                 ((ObjectNode) parent).put(fieldName, replacement);
             }
         }
