@@ -13,14 +13,17 @@ import com.networknt.schema.Collector;
 import com.networknt.schema.CollectorContext;
 import com.networknt.schema.ErrorMessageType;
 import com.networknt.schema.ExecutionContext;
+import com.networknt.schema.Format;
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonMetaSchema;
 import com.networknt.schema.JsonNodePath;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.JsonType;
 import com.networknt.schema.JsonValidator;
 import com.networknt.schema.Keyword;
 import com.networknt.schema.SchemaLocation;
+import com.networknt.schema.TypeFactory;
 import com.networknt.schema.ValidationContext;
 import com.networknt.schema.ValidationMessage;
 import lombok.experimental.UtilityClass;
@@ -31,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @UtilityClass
 public class CustomApplicationUtils {
@@ -39,6 +44,7 @@ public class CustomApplicationUtils {
                     JsonMetaSchema.getV7())
             .keyword(new DialMetaKeyword())
             .keyword(new DialFileKeyword())
+            .format(new DialFileFormat())
             .build();
 
     private static final JsonSchemaFactory schemaFactory = JsonSchemaFactory.builder()
@@ -262,6 +268,28 @@ public class CustomApplicationUtils {
                 serverPropsCollector.combine(List.of(jsonNode.asText()));
             }
             return Set.of();
+        }
+    }
+
+
+    private static class DialFileFormat implements Format {
+
+        private static final Pattern PATTERN = Pattern.compile("files/(?<bucket>[a-zA-Z0-9]+)/(?<path>.*)");
+
+        @Override
+        public boolean matches(ExecutionContext executionContext, ValidationContext validationContext, JsonNode value) {
+            JsonType nodeType = TypeFactory.getValueNodeType(value, validationContext.getConfig());
+            if (nodeType != JsonType.STRING) {
+                return false;
+            }
+            String nodeValue = value.textValue();
+            Matcher matcher = PATTERN.matcher(nodeValue);
+            return matcher.matches();
+        }
+
+        @Override
+        public String getName() {
+            return "dial-file";
         }
     }
 }

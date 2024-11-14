@@ -80,7 +80,7 @@
             ],
             "properties": {
               "format": {
-                "const": "uri-reference"
+                "const": "dial-file"
               },
               "type": {
                 "const": "string"
