@@ -313,7 +313,8 @@ public class ApplicationService {
                     if (isPublicOrReview) {
                         throw new HttpException(HttpStatus.CONFLICT, "The application function must be deleted in public/review bucket");
                     }
-
+                    application.setCustomAppSchemaId(existing.getCustomAppSchemaId());
+                    application.setCustomProperties(existing.getCustomProperties());
                     application.setEndpoint(existing.getEndpoint());
                     application.getFeatures().setRateEndpoint(existing.getFeatures().getRateEndpoint());
                     application.getFeatures().setTokenizeEndpoint(existing.getFeatures().getTokenizeEndpoint());

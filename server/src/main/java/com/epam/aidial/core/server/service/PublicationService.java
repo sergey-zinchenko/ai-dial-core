@@ -26,6 +26,9 @@ import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.mutable.MutableObject;
 
@@ -384,7 +387,7 @@ public class PublicationService {
         List<Publication.Resource> linkedResourcesToPublish = publication.getResources().stream()
                 .filter(resource -> resource.getAction() != Publication.ResourceAction.DELETE)
                 .flatMap(resource -> {
-                    ResourceDescriptor source = ResourceDescriptorFactory.fromPublicUrl(resource.getSourceUrl());
+                    ResourceDescriptor source = ResourceDescriptorFactory.fromAnyUrl(resource.getSourceUrl(), encryption);
                     if (source.getType() != ResourceTypes.APPLICATION) {
                         return Stream.empty();
                     }
@@ -580,6 +583,7 @@ public class PublicationService {
 
             if (from.getType() == ResourceTypes.APPLICATION) {
                 applicationService.copyApplication(from, to, false, app -> {
+                    replaceCustomAppFiles(app, replacementLinks);
                     app.setReference(ApplicationUtil.generateReference());
                     app.setIconUrl(replaceLink(replacementLinks, app.getIconUrl()));
                 });
@@ -589,6 +593,45 @@ public class PublicationService {
 
             if (from.getType() == ResourceTypes.CONVERSATION) {
                 this.resourceService.computeResource(to, body -> PublicationUtil.replaceConversationLinks(body, to, replacementLinks));
+            }
+        }
+    }
+
+    private void replaceCustomAppFiles(Application application, Map<String, String> replacementLinks) {
+        if (application.getCustomAppSchemaId() == null) {
+            return;
+        }
+        JsonNode customProperties = ProxyUtil.MAPPER.convertValue(application.getCustomProperties(), JsonNode.class);
+        replaceLinksInJsonNode(customProperties, replacementLinks, null, null);
+        Map<String, Object> customPropertiesMap = ProxyUtil.MAPPER.convertValue(customProperties, new TypeReference<>() {
+        });
+
+        application.setCustomProperties(customPropertiesMap);
+    }
+
+    private void replaceLinksInJsonNode(JsonNode node, Map<String, String> replacementLinks, JsonNode parent, String fieldName) {
+        if (node.isObject()) {
+            node.fields().forEachRemaining(entry -> replaceLinksInJsonNode(entry.getValue(), replacementLinks, node, entry.getKey()));
+        } else if (node.isArray()) {
+            for (int i = 0; i < node.size(); i++) {
+                if (node.get(i).isTextual()) {
+                    String text = node.get(i).textValue();
+                    String replacement = replacementLinks.get(text);
+                    if (replacement != null) {
+                        ((ArrayNode) node).set(i, replacement);
+                    }
+                } else {
+                    replaceLinksInJsonNode(node.get(i), replacementLinks, node, String.valueOf(i));
+                }
+            }
+        } else if (node.isTextual()) {
+            String text = node.textValue();
+            String replacement = replacementLinks.get(text);
+            if (replacement == null) {
+                return;
+            }
+            if (parent.isObject()) {
+                ((ObjectNode) parent).put(fieldName, replacement);
             }
         }
     }
@@ -620,6 +663,7 @@ public class PublicationService {
 
             if (from.getType() == ResourceTypes.APPLICATION) {
                 applicationService.copyApplication(from, to, false, app -> {
+                    replaceCustomAppFiles(app, replacementLinks);
                     app.setReference(ApplicationUtil.generateReference());
                     app.setIconUrl(replaceLink(replacementLinks, app.getIconUrl()));
                 });
