@@ -384,6 +384,16 @@ public class PublicationService {
                 .map(Publication.Resource::getSourceUrl)
                 .toList();
 
+        final String targetFolder;
+            {
+                String tempTargetFolder = publication.getTargetFolder();
+                int separatorIndex = tempTargetFolder.indexOf(ResourceDescriptor.PATH_SEPARATOR);
+                if (separatorIndex != -1) {
+                    tempTargetFolder = tempTargetFolder.substring(separatorIndex + 1);
+                }
+                targetFolder = tempTargetFolder;
+            }
+
         List<Publication.Resource> linkedResourcesToPublish = publication.getResources().stream()
                 .filter(resource -> resource.getAction() != Publication.ResourceAction.DELETE)
                 .flatMap(resource -> {
@@ -408,7 +418,7 @@ public class PublicationService {
                                     .setSourceUrl(sourceDescriptor.getUrl())
                                     .setTargetUrl(ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE,
                                             ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PATH_SEPARATOR,
-                                            sourceDescriptor.getName()).getUrl()));
+                                            targetFolder + sourceDescriptor.getName()).getUrl()));
                 })
                 .toList();
 
