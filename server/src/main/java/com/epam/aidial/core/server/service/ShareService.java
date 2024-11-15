@@ -1,5 +1,8 @@
 package com.epam.aidial.core.server.service;
 
+import com.epam.aidial.core.config.Application;
+import com.epam.aidial.core.config.Config;
+import com.epam.aidial.core.server.config.ConfigStore;
 import com.epam.aidial.core.server.data.Invitation;
 import com.epam.aidial.core.server.data.InvitationLink;
 import com.epam.aidial.core.server.data.ListSharedResourcesRequest;
@@ -12,6 +15,7 @@ import com.epam.aidial.core.server.data.SharedResource;
 import com.epam.aidial.core.server.data.SharedResources;
 import com.epam.aidial.core.server.data.SharedResourcesResponse;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.data.MetadataBase;
@@ -21,6 +25,7 @@ import com.epam.aidial.core.storage.data.ResourceItemMetadata;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.resource.ResourceType;
 import com.epam.aidial.core.storage.service.ResourceService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Sets;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,13 +49,15 @@ public class ShareService {
     private final ResourceService resourceService;
     private final InvitationService invitationService;
     private final EncryptionService encryptionService;
+    private final ApplicationService applicationService;
+    private final ConfigStore configStore;
 
     /**
      * Returns a list of resources shared with user.
      *
-     * @param bucket - user bucket
+     * @param bucket   - user bucket
      * @param location - storage location
-     * @param request - request body
+     * @param request  - request body
      * @return list of shared with user resources
      */
     public SharedResourcesResponse listSharedWithMe(String bucket, String location, ListSharedResourcesRequest request) {
@@ -78,9 +85,9 @@ public class ShareService {
     /**
      * Returns list of resources shared by user.
      *
-     * @param bucket - user bucket
+     * @param bucket   - user bucket
      * @param location - storage location
-     * @param request - request body
+     * @param request  - request body
      * @return list of shared with user resources
      */
     public SharedResourcesResponse listSharedByMe(String bucket, String location, ListSharedResourcesRequest request) {
@@ -105,12 +112,37 @@ public class ShareService {
         return new SharedResourcesResponse(resultMetadata);
     }
 
+
+    private void addCustomApplicationRelatedFiles(ShareResourcesRequest request) {
+        List<String> filesFromRequest = request.getResources().stream()
+                .map(SharedResource::url).toList();
+        try {
+            Config config = configStore.load();
+            Set<SharedResource> newSharedResources = new HashSet<>(request.getResources());
+            for (SharedResource sharedResource : request.getResources()) {
+                ResourceDescriptor resource = getResourceFromLink(sharedResource.url());
+                if (resource.getType() == ResourceTypes.APPLICATION) {
+                    Application application = applicationService.getApplication(resource, null).getValue();
+                    List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService, resourceService);
+                    for (ResourceDescriptor file : files) {
+                        if (!filesFromRequest.contains(file.getUrl())) {
+                            newSharedResources.add(new SharedResource(file.getUrl(), sharedResource.permissions()));
+                        }
+                    }
+                }
+            }
+            request.setResources(newSharedResources);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      * Initialize share request by creating invitation object
      *
-     * @param bucket - user bucket
+     * @param bucket   - user bucket
      * @param location - storage location
-     * @param request - request body
+     * @param request  - request body
      * @return invitation link
      */
     public InvitationLink initializeShare(String bucket, String location, ShareResourcesRequest request) {
@@ -119,7 +151,7 @@ public class ShareService {
         if (sharedResources.isEmpty()) {
             throw new IllegalArgumentException("No resources provided");
         }
-
+        addCustomApplicationRelatedFiles(request);
         Set<String> uniqueLinks = new HashSet<>();
         List<SharedResource> normalizedResourceLinks = new ArrayList<>(sharedResources.size());
         for (SharedResource sharedResource : sharedResources) {
@@ -140,8 +172,8 @@ public class ShareService {
     /**
      * Accept an invitation to grand share access for provided resources
      *
-     * @param bucket - user bucket
-     * @param location - storage location
+     * @param bucket       - user bucket
+     * @param location     - storage location
      * @param invitationId - invitation ID
      */
     public void acceptSharedResources(String bucket, String location, String invitationId) {
@@ -246,8 +278,8 @@ public class ShareService {
     /**
      * Revoke share access for provided resource. Only resource owner can perform this operation
      *
-     * @param bucket - user bucket
-     * @param location - storage location
+     * @param bucket       - user bucket
+     * @param location     - storage location
      * @param resourceLink - the resource to revoke access
      */
     public void revokeSharedResource(
@@ -258,8 +290,8 @@ public class ShareService {
     /**
      * Revoke share access for provided resources. Only resource owner can perform this operation
      *
-     * @param bucket - user bucket
-     * @param location - storage location
+     * @param bucket              - user bucket
+     * @param location            - storage location
      * @param permissionsToRevoke - collection of resources and permissions to revoke access
      */
     public void revokeSharedAccess(
