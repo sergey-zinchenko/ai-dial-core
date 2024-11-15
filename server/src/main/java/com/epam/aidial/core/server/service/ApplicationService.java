@@ -99,7 +99,7 @@ public class ApplicationService {
         return false;
     }
 
-    public List<Application> getAllApplications(ProxyContext context) throws JsonProcessingException {
+    public List<Application> getAllApplications(ProxyContext context) {
         List<Application> applications = new ArrayList<>();
         applications.addAll(getPrivateApplications(context));
         applications.addAll(getSharedApplications(context));
@@ -107,7 +107,7 @@ public class ApplicationService {
         return applications;
     }
 
-    public List<Application> getPrivateApplications(ProxyContext context) throws JsonProcessingException {
+    public List<Application> getPrivateApplications(ProxyContext context) {
         String location = BucketBuilder.buildInitiatorBucket(context);
         String bucket = encryptionService.encrypt(location);
 
@@ -115,7 +115,7 @@ public class ApplicationService {
         return getApplications(folder, context);
     }
 
-    public List<Application> getSharedApplications(ProxyContext context) throws JsonProcessingException {
+    public List<Application> getSharedApplications(ProxyContext context) {
         String location = BucketBuilder.buildInitiatorBucket(context);
         String bucket = encryptionService.encrypt(location);
 
@@ -143,13 +143,13 @@ public class ApplicationService {
         return list;
     }
 
-    public List<Application> getPublicApplications(ProxyContext context) throws JsonProcessingException {
+    public List<Application> getPublicApplications(ProxyContext context) {
         ResourceDescriptor folder = ResourceDescriptorFactory.fromDecoded(ResourceTypes.APPLICATION, ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PUBLIC_LOCATION, null);
         AccessService accessService = context.getProxy().getAccessService();
         return getApplications(folder, page -> accessService.filterForbidden(context, folder, page), context);
     }
 
-    public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource, ProxyContext context) throws JsonProcessingException {
+    public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource, ProxyContext context) {
         verifyApplication(resource);
         Pair<ResourceItemMetadata, String> result = resourceService.getResourceWithMetadata(resource);
 
@@ -171,14 +171,14 @@ public class ApplicationService {
         return Pair.of(meta, application);
     }
 
-    public List<Application> getApplications(ResourceDescriptor resource, ProxyContext ctx) throws JsonProcessingException {
+    public List<Application> getApplications(ResourceDescriptor resource, ProxyContext ctx) {
         Consumer<ResourceFolderMetadata> noop = ignore -> {
         };
         return getApplications(resource, noop, ctx);
     }
 
     public List<Application> getApplications(ResourceDescriptor resource,
-                                             Consumer<ResourceFolderMetadata> filter, ProxyContext ctx) throws JsonProcessingException {
+                                             Consumer<ResourceFolderMetadata> filter, ProxyContext ctx) {
         if (!resource.isFolder() || resource.getType() != ResourceTypes.APPLICATION) {
             throw new IllegalArgumentException("Invalid application folder: " + resource.getUrl());
         }
@@ -212,7 +212,6 @@ public class ApplicationService {
 
         return applications;
     }
-
 
 
     public Pair<ResourceItemMetadata, Application> putApplication(ResourceDescriptor resource, EtagHeader etag, Application application) {
@@ -281,7 +280,7 @@ public class ApplicationService {
         }
     }
 
-    public void copyApplication(ResourceDescriptor source, ResourceDescriptor destination, boolean overwrite, Consumer<Application> consumer) throws JsonProcessingException {
+    public void copyApplication(ResourceDescriptor source, ResourceDescriptor destination, boolean overwrite, Consumer<Application> consumer) {
         verifyApplication(source);
         verifyApplication(destination);
 
@@ -408,7 +407,7 @@ public class ApplicationService {
         return result.getValue();
     }
 
-    public Application.Logs getApplicationLogs(ResourceDescriptor resource, ProxyContext context) throws JsonProcessingException {
+    public Application.Logs getApplicationLogs(ResourceDescriptor resource, ProxyContext context) {
         verifyApplication(resource);
         controller.verifyActive();
 
@@ -509,7 +508,7 @@ public class ApplicationService {
         return null;
     }
 
-    private Void launchApplication(ProxyContext context, ResourceDescriptor resource) throws JsonProcessingException {
+    private Void launchApplication(ProxyContext context, ResourceDescriptor resource) {
         // right now there is no lock watchdog mechanism
         // this lock can expire before this operation is finished
         // for extra safety the controller timeout is less than lock timeout
@@ -563,7 +562,7 @@ public class ApplicationService {
         }
     }
 
-    private Void terminateApplication(ResourceDescriptor resource, String error) throws JsonProcessingException {
+    private Void terminateApplication(ResourceDescriptor resource, String error) {
         try (LockService.Lock lock = lockService.tryLock(deploymentLockKey(resource))) {
             if (lock == null) {
                 return null;
@@ -621,8 +620,8 @@ public class ApplicationService {
 
     private String encodeTargetFolder(ResourceDescriptor resource, String id) {
         String location = resource.getBucketLocation()
-                          + DEPLOYMENTS_NAME + ResourceDescriptor.PATH_SEPARATOR
-                          + id + ResourceDescriptor.PATH_SEPARATOR;
+                + DEPLOYMENTS_NAME + ResourceDescriptor.PATH_SEPARATOR
+                + id + ResourceDescriptor.PATH_SEPARATOR;
 
         String name = encryptionService.encrypt(location);
         return ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE, name, location, null).getUrl();

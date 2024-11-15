@@ -36,7 +36,7 @@ public class AppendCustomApplicationPropertiesFn extends BaseRequestFunction<Obj
         }
     }
 
-    private static boolean appendCustomProperties(ProxyContext context, ObjectNode tree) throws JsonProcessingException {
+    private static boolean appendCustomProperties(ProxyContext context, ObjectNode tree) {
         Deployment deployment = context.getDeployment();
         if (!(deployment instanceof Application application && application.getCustomAppSchemaId() != null)) {
             return false;

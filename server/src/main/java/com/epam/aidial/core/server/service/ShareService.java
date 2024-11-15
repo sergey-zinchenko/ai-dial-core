@@ -25,7 +25,6 @@ import com.epam.aidial.core.storage.data.ResourceItemMetadata;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.resource.ResourceType;
 import com.epam.aidial.core.storage.service.ResourceService;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Sets;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -116,25 +115,21 @@ public class ShareService {
     private void addCustomApplicationRelatedFiles(ShareResourcesRequest request) {
         List<String> filesFromRequest = request.getResources().stream()
                 .map(SharedResource::url).toList();
-        try {
-            Config config = configStore.load();
-            Set<SharedResource> newSharedResources = new HashSet<>(request.getResources());
-            for (SharedResource sharedResource : request.getResources()) {
-                ResourceDescriptor resource = getResourceFromLink(sharedResource.url());
-                if (resource.getType() == ResourceTypes.APPLICATION) {
-                    Application application = applicationService.getApplication(resource, null).getValue();
-                    List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService, resourceService);
-                    for (ResourceDescriptor file : files) {
-                        if (!filesFromRequest.contains(file.getUrl())) {
-                            newSharedResources.add(new SharedResource(file.getUrl(), sharedResource.permissions()));
-                        }
+        Config config = configStore.load();
+        Set<SharedResource> newSharedResources = new HashSet<>(request.getResources());
+        for (SharedResource sharedResource : request.getResources()) {
+            ResourceDescriptor resource = getResourceFromLink(sharedResource.url());
+            if (resource.getType() == ResourceTypes.APPLICATION) {
+                Application application = applicationService.getApplication(resource, null).getValue();
+                List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService, resourceService);
+                for (ResourceDescriptor file : files) {
+                    if (!filesFromRequest.contains(file.getUrl())) {
+                        newSharedResources.add(new SharedResource(file.getUrl(), sharedResource.permissions()));
                     }
                 }
             }
-            request.setResources(newSharedResources);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
         }
+        request.setResources(newSharedResources);
     }
 
     /**

@@ -20,7 +20,6 @@ import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.resource.ResourceType;
 import com.epam.aidial.core.storage.service.LockService;
 import com.epam.aidial.core.storage.service.ResourceTopic;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -105,11 +104,7 @@ public class ResourceOperationController {
 
                     List<String> buckets = List.of(source.getBucketLocation(), destination.getBucketLocation());
                     return vertx.executeBlocking(() -> lockService.underBucketLocks(buckets, () -> {
-                        try {
-                            resourceOperationService.moveResource(source, destination, request.isOverwrite());
-                        } catch (JsonProcessingException e) {
-                            throw new RuntimeException(e);
-                        }
+                        resourceOperationService.moveResource(source, destination, request.isOverwrite());
                         return null;
                     }), false);
                 })

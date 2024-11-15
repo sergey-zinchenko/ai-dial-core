@@ -24,7 +24,6 @@ import com.epam.aidial.core.storage.resource.ResourceType;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -146,7 +145,7 @@ public class PublicationService {
         return publication;
     }
 
-    public Publication createPublication(ProxyContext context, Publication publication) throws JsonProcessingException {
+    public Publication createPublication(ProxyContext context, Publication publication) {
         String bucketLocation = BucketBuilder.buildInitiatorBucket(context);
         String bucket = encryption.encrypt(bucketLocation);
         boolean isAdmin = accessService.hasAdminAccess(context);
@@ -219,7 +218,7 @@ public class PublicationService {
     }
 
     @Nullable
-    public Publication approvePublication(ResourceDescriptor resource) throws JsonProcessingException {
+    public Publication approvePublication(ResourceDescriptor resource) {
         Publication publication = getPublication(resource);
         if (publication.getStatus() != Publication.Status.PENDING) {
             throw new ResourceNotFoundException("Publication is already finalized: " + resource.getUrl());
@@ -315,7 +314,7 @@ public class PublicationService {
 
     private void prepareAndValidatePublicationRequest(ProxyContext context, Publication publication,
                                                       String bucketName, String bucketLocation,
-                                                      boolean isAdmin) throws JsonProcessingException {
+                                                      boolean isAdmin) {
         String targetFolder = publication.getTargetFolder();
         if (targetFolder == null) {
             throw new IllegalArgumentException("Publication \"targetFolder\" is missing");
@@ -401,12 +400,7 @@ public class PublicationService {
                     if (source.getType() != ResourceTypes.APPLICATION) {
                         return Stream.empty();
                     }
-                    Application application;
-                    try {
-                        application = applicationService.getApplication(source, context).getValue();
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
-                    }
+                    Application application = applicationService.getApplication(source, context).getValue();
                     if (application.getCustomAppSchemaId() == null) {
                         return Stream.empty();
                     }
@@ -488,7 +482,7 @@ public class PublicationService {
     }
 
     private void validateResourceForDeletion(Publication.Resource resource, String targetFolder, Set<String> urls,
-                                             String bucketName, boolean isAdmin) throws JsonProcessingException {
+                                             String bucketName, boolean isAdmin) {
         String targetUrl = resource.getTargetUrl();
         ResourceDescriptor target = ResourceDescriptorFactory.fromPublicUrl(targetUrl);
         verifyResourceType(target);
@@ -566,7 +560,7 @@ public class PublicationService {
         }
     }
 
-    private void copySourceToReviewResources(List<Publication.Resource> resources) throws JsonProcessingException {
+    private void copySourceToReviewResources(List<Publication.Resource> resources) {
         Map<String, String> replacementLinks = new HashMap<>();
 
         for (Publication.Resource resource : resources) {
@@ -642,7 +636,7 @@ public class PublicationService {
         }
     }
 
-    private void copyReviewToTargetResources(List<Publication.Resource> resources) throws JsonProcessingException {
+    private void copyReviewToTargetResources(List<Publication.Resource> resources) {
         Map<String, String> replacementLinks = new HashMap<>();
 
         for (Publication.Resource resource : resources) {

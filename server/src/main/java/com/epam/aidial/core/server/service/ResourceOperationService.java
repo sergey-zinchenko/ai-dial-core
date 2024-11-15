@@ -9,7 +9,6 @@ import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.service.ResourceTopic;
 import com.epam.aidial.core.storage.util.EtagHeader;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.AllArgsConstructor;
 
 import java.util.Collection;
@@ -32,7 +31,7 @@ public class ResourceOperationService {
         return resourceService.subscribeResources(resources, subscriber);
     }
 
-    public void moveResource(ResourceDescriptor source, ResourceDescriptor destination, boolean overwriteIfExists) throws JsonProcessingException {
+    public void moveResource(ResourceDescriptor source, ResourceDescriptor destination, boolean overwriteIfExists) {
         if (source.isFolder() || destination.isFolder()) {
             throw new IllegalArgumentException("Moving folders is not supported");
         }
