@@ -135,8 +135,9 @@ public class ResourceController extends AccessControlBaseController {
             return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
         }
 
+        EtagHeader etagHeader = ProxyUtil.etag(context.getRequest());
         Future<Pair<ResourceItemMetadata, String>> responseFuture = (descriptor.getType() == ResourceTypes.APPLICATION)
-                ? getApplicationData(descriptor, hasWriteAccess) : getResourceData(descriptor);
+                ? getApplicationData(descriptor, hasWriteAccess, etagHeader) : getResourceData(descriptor, etagHeader);
 
         responseFuture.onSuccess(pair -> {
                     context.putHeader(HttpHeaders.ETAG, pair.getKey().getEtag())
@@ -148,9 +149,9 @@ public class ResourceController extends AccessControlBaseController {
         return Future.succeededFuture();
     }
 
-    private Future<Pair<ResourceItemMetadata, String>> getApplicationData(ResourceDescriptor descriptor, boolean hasWriteAccess) {
+    private Future<Pair<ResourceItemMetadata, String>> getApplicationData(ResourceDescriptor descriptor, boolean hasWriteAccess, EtagHeader etagHeader) {
         return vertx.executeBlocking(() -> {
-            Pair<ResourceItemMetadata, Application> result = applicationService.getApplication(descriptor, context);
+            Pair<ResourceItemMetadata, Application> result = applicationService.getApplication(descriptor, etagHeader, context);
             ResourceItemMetadata meta = result.getKey();
 
             Application application = result.getValue();
@@ -163,9 +164,9 @@ public class ResourceController extends AccessControlBaseController {
         }, false);
     }
 
-    private Future<Pair<ResourceItemMetadata, String>> getResourceData(ResourceDescriptor descriptor) {
+    private Future<Pair<ResourceItemMetadata, String>> getResourceData(ResourceDescriptor descriptor, EtagHeader etag) {
         return vertx.executeBlocking(() -> {
-            Pair<ResourceItemMetadata, String> result = service.getResourceWithMetadata(descriptor);
+            Pair<ResourceItemMetadata, String> result = service.getResourceWithMetadata(descriptor, etag);
 
             if (result == null) {
                 throw new ResourceNotFoundException();
@@ -288,7 +289,7 @@ public class ResourceController extends AccessControlBaseController {
 
     private void handleError(ResourceDescriptor descriptor, Throwable error) {
         if (error instanceof HttpException exception) {
-            context.respond(exception.getStatus(), exception.getMessage());
+            context.respond(exception);
         } else if (error instanceof IllegalArgumentException) {
             context.respond(BAD_REQUEST, error.getMessage());
         } else if (error instanceof ResourceNotFoundException) {

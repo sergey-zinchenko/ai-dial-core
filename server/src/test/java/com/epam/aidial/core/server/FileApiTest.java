@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.Map;
 import java.util.stream.IntStream;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -329,6 +330,60 @@ public class FileApiTest extends ResourceBaseTest {
                             checkpoint.flag();
                         });
                     }));
+        });
+    }
+
+    @Test
+    public void testUploadFileWithWrongContentType(Vertx vertx, VertxTestContext context) {
+        Checkpoint checkpoint = context.checkpoint(2);
+        WebClient client = WebClient.create(vertx);
+
+        Future.succeededFuture().compose((mapper) -> {
+            Promise<Void> promise = Promise.promise();
+            // verify no files
+            client.get(serverPort, "localhost", "/v1/metadata/files/7G9WZNcoY26Vy9D7bEgbv6zqbJGfyDp9KZyEbJR4XMZt/?permissions=true")
+                    .putHeader("Api-key", "proxyKey2")
+                    .as(BodyCodec.string())
+                    .send(context.succeeding(response -> {
+                        context.verify(() -> {
+                            assertEquals(200, response.statusCode());
+                            verifyJsonNotExact("""
+                                    {
+                                      "name" : null,
+                                      "parentPath" : null,
+                                      "bucket" : "7G9WZNcoY26Vy9D7bEgbv6zqbJGfyDp9KZyEbJR4XMZt",
+                                      "url" : "files/7G9WZNcoY26Vy9D7bEgbv6zqbJGfyDp9KZyEbJR4XMZt/",
+                                      "nodeType" : "FOLDER",
+                                      "resourceType" : "FILE",
+                                      "permissions" : [ "READ", "WRITE" ],
+                                      "items" : [ ]
+                                    }
+                                    """, response.body());
+                            checkpoint.flag();
+                            promise.complete();
+                        });
+                    }));
+
+            return promise.future();
+        }).compose((mapper) -> {
+            Promise<Void> promise = Promise.promise();
+            // upload test file with wrong content type
+            client.put(serverPort, "localhost", "/v1/files/7G9WZNcoY26Vy9D7bEgbv6zqbJGfyDp9KZyEbJR4XMZt/%D1%84%D0%B0%D0%B9%D0%BB.txt")
+                    .putHeader("Api-key", "proxyKey2")
+                    .putHeader("content-type", "wrong-multipart/form-data")
+                    .as(BodyCodec.string())
+                    .send(
+                            context.succeeding(response -> {
+                                context.verify(() -> {
+                                    assertEquals(400, response.statusCode());
+                                    assertEquals("Request must have a valid content-type header to decode a multipart request", response.body());
+                                    checkpoint.flag();
+                                    promise.complete();
+                                });
+                            })
+                    );
+
+            return promise.future();
         });
     }
 
@@ -1410,7 +1465,60 @@ public class FileApiTest extends ResourceBaseTest {
                             context.succeeding(response -> {
                                 context.verify(() -> {
                                     assertEquals(412, response.statusCode());
-                                    assertEquals("ETag 123 is rejected", response.bodyAsString());
+                                    assertTrue(response.bodyAsString().startsWith("If-match condition is failed for etag"));
+                                    checkpoint.flag();
+                                    promise.complete();
+                                });
+                            })
+                    );
+
+            return promise.future();
+        }).compose(mapper -> {
+            Promise<Void> promise = Promise.promise();
+            // get the test file with incorrect ETag
+            client.get(serverPort, "localhost", "/v1/files/7G9WZNcoY26Vy9D7bEgbv6zqbJGfyDp9KZyEbJR4XMZt/test_file.txt")
+                    .putHeader("Api-key", "proxyKey2")
+                    .putHeader(HttpHeaders.IF_MATCH, "123")
+                    .as(BodyCodec.string())
+                    .send(context.succeeding(response -> {
+                        context.verify(() -> {
+                            assertEquals(412, response.statusCode());
+                            assertTrue(response.body().startsWith("If-match condition is failed for etag"));
+                            checkpoint.flag();
+                            promise.complete();
+                        });
+                    }));
+
+            return promise.future();
+        }).compose(mapper -> {
+            Promise<Void> promise = Promise.promise();
+            // get the test file with incorrect If Non Match ETag
+            client.get(serverPort, "localhost", "/v1/files/7G9WZNcoY26Vy9D7bEgbv6zqbJGfyDp9KZyEbJR4XMZt/test_file.txt")
+                    .putHeader("Api-key", "proxyKey2")
+                    .putHeader(HttpHeaders.IF_NONE_MATCH, TEST_FILE_ETAG)
+                    .as(BodyCodec.string())
+                    .send(context.succeeding(response -> {
+                        context.verify(() -> {
+                            assertEquals(304, response.statusCode());
+                            assertEquals(TEST_FILE_ETAG, response.getHeader(HttpHeaders.ETAG));
+                            checkpoint.flag();
+                            promise.complete();
+                        });
+                    }));
+
+            return promise.future();
+        }).compose(mapper -> {
+            Promise<Void> promise = Promise.promise();
+            // get the test file with correct ETag
+            client.get(serverPort, "localhost", "/v1/files/7G9WZNcoY26Vy9D7bEgbv6zqbJGfyDp9KZyEbJR4XMZt/test_file.txt")
+                    .putHeader("Api-key", "proxyKey2")
+                    .putHeader(HttpHeaders.IF_MATCH, TEST_FILE_ETAG)
+                    .as(BodyCodec.string())
+                    .send(
+                            context.succeeding(response -> {
+                                context.verify(() -> {
+                                    assertEquals(200, response.statusCode());
+                                    assertEquals(TEST_FILE_CONTENT, response.body());
                                     checkpoint.flag();
                                     promise.complete();
                                 });
@@ -1476,7 +1584,7 @@ public class FileApiTest extends ResourceBaseTest {
                     .send(context.succeeding(response -> {
                         context.verify(() -> {
                             assertEquals(412, response.statusCode());
-                            assertEquals("ETag %s is rejected".formatted(TEST_FILE_ETAG), response.bodyAsString());
+                            assertTrue(response.bodyAsString().startsWith("If-match condition is failed for etag"));
                             checkpoint.flag();
                             promise.complete();
                         });

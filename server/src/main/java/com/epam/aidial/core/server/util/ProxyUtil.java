@@ -42,6 +42,9 @@ public class ProxyUtil {
             .addModule(new ValidationModule())
             .build();
 
+    private static final MultiMap TRACE_HEADERS = MultiMap.caseInsensitiveMultiMap()
+            .add("traceparent", "whatever")
+            .add("tracestate", "whatever");
     private static final MultiMap HOP_BY_HOP_HEADERS = MultiMap.caseInsensitiveMultiMap()
             .add(HttpHeaders.CONNECTION, "whatever")
             .add(HttpHeaders.KEEP_ALIVE, "whatever")
@@ -315,6 +318,6 @@ public class ProxyUtil {
     }
 
     public static EtagHeader etag(HttpServerRequest request) {
-        return EtagHeader.fromHeader(request.getHeader(HttpHeaders.IF_MATCH), request.getHeader(HttpHeaders.IF_NONE_MATCH));
+        return EtagHeader.fromHeader(request.getHeader(HttpHeaders.IF_MATCH), request.getHeader(HttpHeaders.IF_NONE_MATCH), request.method().name());
     }
 }

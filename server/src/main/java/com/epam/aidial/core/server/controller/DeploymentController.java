@@ -168,6 +168,10 @@ public class DeploymentController {
             data.setAccessibleByPerRequestKey(features.getAccessibleByPerRequestKey());
         }
 
+        if (features.getContentPartsSupported() != null) {
+            data.setContentPartsSupported(features.getContentPartsSupported());
+        }
+
         return data;
     }
 }

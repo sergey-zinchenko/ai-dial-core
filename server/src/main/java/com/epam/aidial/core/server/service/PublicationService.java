@@ -153,7 +153,7 @@ public class PublicationService {
         prepareAndValidatePublicationRequest(context, publication, bucket, bucketLocation, isAdmin);
 
         List<Publication.Resource> resourcesToAdd = publication.getResources().stream()
-                .filter(resource -> resource.getAction() == Publication.ResourceAction.ADD)
+                .filter(resource -> resource.getAction() == Publication.ResourceAction.ADD || resource.getAction() == Publication.ResourceAction.ADD_IF_ABSENT)
                 .toList();
 
         copySourceToReviewResources(resourcesToAdd);
@@ -209,7 +209,7 @@ public class PublicationService {
 
         if (publication.getStatus() == Publication.Status.PENDING) {
             List<Publication.Resource> resourcesToAdd = publication.getResources().stream()
-                    .filter(i -> i.getAction() == Publication.ResourceAction.ADD)
+                    .filter(i -> i.getAction() == Publication.ResourceAction.ADD || i.getAction() == Publication.ResourceAction.ADD_IF_ABSENT)
                     .toList();
             deleteReviewResources(resourcesToAdd);
         }
@@ -225,7 +225,7 @@ public class PublicationService {
         }
 
         List<Publication.Resource> resourcesToAdd = publication.getResources().stream()
-                .filter(i -> i.getAction() == Publication.ResourceAction.ADD)
+                .filter(i -> i.getAction() == Publication.ResourceAction.ADD || i.getAction() == Publication.ResourceAction.ADD_IF_ABSENT)
                 .toList();
 
         List<Publication.Resource> resourcesToDelete = publication.getResources().stream()
@@ -299,7 +299,7 @@ public class PublicationService {
 
         Publication publication = reference.getValue();
         List<Publication.Resource> resourcesToAdd = publication.getResources().stream()
-                .filter(i -> i.getAction() == Publication.ResourceAction.ADD)
+                .filter(i -> i.getAction() == Publication.ResourceAction.ADD || i.getAction() == Publication.ResourceAction.ADD_IF_ABSENT)
                 .toList();
         deleteReviewResources(resourcesToAdd);
 
@@ -356,7 +356,7 @@ public class PublicationService {
                 throw new IllegalArgumentException("Resource \"action\" is missing");
             }
 
-            if (action == Publication.ResourceAction.ADD) {
+            if (action == Publication.ResourceAction.ADD || action == Publication.ResourceAction.ADD_IF_ABSENT) {
                 validateResourceForAddition(context, resource, targetFolder, reviewBucket, urls);
             } else if (action == Publication.ResourceAction.DELETE) {
                 validateResourceForDeletion(resource, targetFolder, urls, bucketName, isAdmin);
@@ -457,7 +457,7 @@ public class PublicationService {
             throw new IllegalArgumentException("Source resource does not exists: " + sourceUrl);
         }
 
-        if (resourceService.hasResource(target)) {
+        if (resource.getAction() == Publication.ResourceAction.ADD && resourceService.hasResource(target)) {
             throw new IllegalArgumentException("Target resource already exists: " + targetUrl);
         }
 
@@ -553,7 +553,7 @@ public class PublicationService {
             ResourceDescriptor descriptor = ResourceDescriptorFactory.fromPublicUrl(url);
             verifyResourceType(descriptor);
 
-            if (resourceService.hasResource(descriptor) != exists) {
+            if (resource.getAction() != Publication.ResourceAction.ADD_IF_ABSENT && resourceService.hasResource(descriptor) != exists) {
                 String errorMessage = exists ? "Target resource does not exists: " + url : "Target resource  exists: " + url;
                 throw new IllegalArgumentException(errorMessage);
             }
@@ -667,7 +667,8 @@ public class PublicationService {
                     app.setReference(ApplicationUtil.generateReference());
                     app.setIconUrl(replaceLink(replacementLinks, app.getIconUrl()));
                 });
-            } else if (!resourceService.copyResource(from, to)) {
+            } else if (!resourceService.copyResource(from, to, false)
+                    && resource.getAction() != Publication.ResourceAction.ADD_IF_ABSENT) {
                 throw new IllegalStateException("Can't copy source resource from: " + from.getUrl() + " to review: " + to.getUrl());
             }
 

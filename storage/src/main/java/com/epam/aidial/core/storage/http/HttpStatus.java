@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 public enum HttpStatus {
 
     OK(200),
+    NOT_MODIFIED(304),
     BAD_REQUEST(400),
     UNAUTHORIZED(401),
     FORBIDDEN(403),
@@ -34,6 +35,7 @@ public enum HttpStatus {
     public static HttpStatus fromStatusCode(int code) {
         return switch (code) {
             case 200 -> OK;
+            case 304 -> NOT_MODIFIED;
             case 400 -> BAD_REQUEST;
             case 401 -> UNAUTHORIZED;
             case 403 -> FORBIDDEN;

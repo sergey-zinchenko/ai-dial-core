@@ -4,6 +4,7 @@ import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.server.config.ConfigStore;
 import com.epam.aidial.core.server.controller.Controller;
 import com.epam.aidial.core.server.controller.ControllerSelector;
+import com.epam.aidial.core.server.controller.ControllerTemplate;
 import com.epam.aidial.core.server.data.ApiKeyData;
 import com.epam.aidial.core.server.limiter.RateLimiter;
 import com.epam.aidial.core.server.log.LogStore;
@@ -66,7 +67,6 @@ public class Proxy implements Handler<HttpServerRequest> {
     public static final String HEADER_CONTENT_TYPE_APPLICATION_JSON = "application/json";
 
     public static final int REQUEST_BODY_MAX_SIZE_BYTES = 16 * 1024 * 1024;
-    public static final int FILES_REQUEST_BODY_MAX_SIZE_BYTES = 512 * 1024 * 1024;
 
     private static final Set<HttpMethod> ALLOWED_HTTP_METHODS = Set.of(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE, HttpMethod.HEAD);
 
@@ -146,7 +146,7 @@ public class Proxy implements Handler<HttpServerRequest> {
         String contentType = request.getHeader(HttpHeaders.CONTENT_TYPE);
         int contentLength = ProxyUtil.contentLength(request, 1024);
         if (contentType != null && contentType.startsWith("multipart/form-data")) {
-            if (contentLength > FILES_REQUEST_BODY_MAX_SIZE_BYTES) {
+            if (contentLength > storage.getMaxUploadedFileSize()) {
                 respond(request, HttpStatus.REQUEST_ENTITY_TOO_LARGE, "Request body is too large");
                 return;
             }
@@ -267,7 +267,8 @@ public class Proxy implements Handler<HttpServerRequest> {
         Future<?> future;
         try {
             ProxyContext context = new ProxyContext(this, config, request, apiKeyData, extractedClaims, traceId, spanId);
-            Controller controller = ControllerSelector.select(this, context);
+            ControllerTemplate controllerTemplate = ControllerSelector.select(request);
+            Controller controller = controllerTemplate.build(this, context);
             future = controller.handle();
         } catch (Exception t) {
             future = Future.failedFuture(t);

@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -89,6 +90,7 @@ public class ProxyContext {
     // List of interceptors copied from the deployment config
     private List<String> interceptors;
     private boolean isStreamingRequest;
+    private String traceOperation;
 
     public ProxyContext(Proxy proxy, Config config, HttpServerRequest request, ApiKeyData apiKeyData, ExtractedClaims extractedClaims, String traceId, String spanId) {
         this.proxy = proxy;
@@ -156,8 +158,13 @@ public class ProxyContext {
 
     public Future<?> respond(Throwable error, String fallbackError) {
         return error instanceof HttpException exception
-                ? respond(exception.getStatus(), exception.getMessage())
+                ? respond(exception)
                 : respond(HttpStatus.INTERNAL_SERVER_ERROR, fallbackError);
+    }
+
+    public Future<?> respond(HttpException exception) {
+        response.headers().addAll(exception.getHeaders());
+        return respond(exception.getStatus(), exception.getMessage());
     }
 
     public String getProject() {
@@ -216,5 +223,16 @@ public class ProxyContext {
         }
 
         return this;
+    }
+
+    public String getRequestHeader(String name) {
+        String value = request.getHeader(name);
+        if (value != null) {
+            return value;
+        }
+        return Optional.ofNullable(apiKeyData)
+                .map(ApiKeyData::getHttpHeaders)
+                .map(h -> h.get(name))
+                .orElse(null);
     }
 }
