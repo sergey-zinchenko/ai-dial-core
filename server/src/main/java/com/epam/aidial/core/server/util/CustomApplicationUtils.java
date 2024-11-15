@@ -18,6 +18,7 @@ import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonMetaSchema;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.NonValidationKeyword;
 import com.networknt.schema.ValidationMessage;
 import lombok.experimental.UtilityClass;
 
@@ -34,6 +35,12 @@ public class CustomApplicationUtils {
 
     private static final JsonMetaSchema DIAL_META_SCHEMA = JsonMetaSchema.builder(MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID,
                     JsonMetaSchema.getV7())
+            .keyword(new NonValidationKeyword("dial:custom-application-type-editor-url"))
+            .keyword(new NonValidationKeyword("dial:custom-application-type-display-name"))
+            .keyword(new NonValidationKeyword("dial:custom-application-type-completion-endpoint"))
+            .keyword(new NonValidationKeyword("dial:property-kind"))
+            .keyword(new NonValidationKeyword("dial:property-order"))
+            .keyword(new NonValidationKeyword("$defs"))
             .keyword(new DialMetaKeyword())
             .keyword(new DialFileKeyword())
             .format(new DialFileFormat())
