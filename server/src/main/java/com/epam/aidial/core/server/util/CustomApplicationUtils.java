@@ -2,6 +2,7 @@ package com.epam.aidial.core.server.util;
 
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
+import com.epam.aidial.core.metaschemas.MetaSchemaHolder;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.validation.DialFileFormat;
@@ -31,7 +32,7 @@ import java.util.Set;
 @UtilityClass
 public class CustomApplicationUtils {
 
-    private static final JsonMetaSchema DIAL_META_SCHEMA = JsonMetaSchema.builder("https://dial.epam.com/custom_application_schemas/schema#",
+    private static final JsonMetaSchema DIAL_META_SCHEMA = JsonMetaSchema.builder(MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID,
                     JsonMetaSchema.getV7())
             .keyword(new DialMetaKeyword())
             .keyword(new DialFileKeyword())
