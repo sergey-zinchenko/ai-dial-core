@@ -2,6 +2,7 @@ package com.epam.aidial.core.config.validation;
 
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
+import com.epam.aidial.core.metaschemas.MetaSchemaHolder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonMetaSchema;
@@ -21,7 +22,7 @@ import java.util.Set;
 @Slf4j
 public class CustomApplicationsConformToSchemasValidator implements ConstraintValidator<CustomApplicationsConformToSchemas, Config> {
 
-    private static final JsonMetaSchema dialMetaSchema = JsonMetaSchema.builder("https://dial.epam.com/custom_application_schemas/schema#",  JsonMetaSchema.getV7())
+    private static final JsonMetaSchema DIAL_META_SCHEMA = JsonMetaSchema.builder(MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID,  JsonMetaSchema.getV7())
             .keyword(new NonValidationKeyword("dial:custom-application-type-editor-url"))
             .keyword(new NonValidationKeyword("dial:custom-application-type-display-name"))
             .keyword(new NonValidationKeyword("dial:custom-application-type-completion-endpoint"))
@@ -29,6 +30,7 @@ public class CustomApplicationsConformToSchemasValidator implements ConstraintVa
             .keyword(new NonValidationKeyword("dial:property-kind"))
             .keyword(new NonValidationKeyword("dial:property-order"))
             .keyword(new NonValidationKeyword("dial:file"))
+            .keyword(new NonValidationKeyword("$defs"))
             .build();
 
     @Override
@@ -38,10 +40,7 @@ public class CustomApplicationsConformToSchemasValidator implements ConstraintVa
         }
         JsonSchemaFactory schemaFactory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7, builder ->
                 builder.schemaLoaders(loaders -> loaders.schemas(value.getCustomApplicationSchemas()))
-                        .metaSchema(dialMetaSchema)
-                        .schemaMappers(schemaMappers -> schemaMappers
-                                .mapPrefix("https://dial.epam.com/custom_application_schemas",
-                                        "classpath:custom-application-schemas"))
+                        .metaSchema(DIAL_META_SCHEMA)
         );
 
         ObjectMapper mapper = new ObjectMapper();

@@ -1,6 +1,7 @@
 package com.epam.aidial.core.server.controller;
 
 import com.epam.aidial.core.config.Config;
+import com.epam.aidial.core.metaschemas.MetaSchemaHolder;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.storage.http.HttpStatus;
@@ -11,7 +12,6 @@ import io.vertx.core.http.HttpServerRequest;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -47,13 +47,9 @@ public class AppSchemasController implements Controller {
 
 
     private Future<?> handleGetMetaSchema() {
-        try (InputStream inputStream = AppSchemasController.class.getClassLoader().getResourceAsStream("custom_app_meta_schema")) {
-            if (inputStream == null) {
-                return context.respond(HttpStatus.INTERNAL_SERVER_ERROR, FAILED_READ_META_SCHEMA_MESSAGE);
-            }
-            JsonNode metaSchema = ProxyUtil.MAPPER.readTree(inputStream);
-            return context.respond(HttpStatus.OK, metaSchema);
-        } catch (IOException e) {
+        try {
+            return context.respond(HttpStatus.OK, MetaSchemaHolder.getCustomApplicationMetaSchema());
+        } catch (Throwable e) {
             log.error(FAILED_READ_META_SCHEMA_MESSAGE, e);
             return context.respond(HttpStatus.INTERNAL_SERVER_ERROR, FAILED_READ_META_SCHEMA_MESSAGE);
         }
