@@ -67,7 +67,6 @@ public class Proxy implements Handler<HttpServerRequest> {
     public static final String HEADER_CONTENT_TYPE_APPLICATION_JSON = "application/json";
 
     public static final int REQUEST_BODY_MAX_SIZE_BYTES = 16 * 1024 * 1024;
-    public static final int FILES_REQUEST_BODY_MAX_SIZE_BYTES = 512 * 1024 * 1024;
 
     private static final Set<HttpMethod> ALLOWED_HTTP_METHODS = Set.of(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE, HttpMethod.HEAD);
 
@@ -147,7 +146,7 @@ public class Proxy implements Handler<HttpServerRequest> {
         String contentType = request.getHeader(HttpHeaders.CONTENT_TYPE);
         int contentLength = ProxyUtil.contentLength(request, 1024);
         if (contentType != null && contentType.startsWith("multipart/form-data")) {
-            if (contentLength > FILES_REQUEST_BODY_MAX_SIZE_BYTES) {
+            if (contentLength > storage.getMaxUploadedFileSize()) {
                 respond(request, HttpStatus.REQUEST_ENTITY_TOO_LARGE, "Request body is too large");
                 return;
             }
