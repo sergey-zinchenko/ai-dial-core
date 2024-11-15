@@ -21,6 +21,7 @@ import com.networknt.schema.ValidationMessage;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,23 +31,22 @@ import java.util.Set;
 @UtilityClass
 public class CustomApplicationUtils {
 
-    private static final JsonMetaSchema dialMetaSchema = JsonMetaSchema.builder("https://dial.epam.com/custom_application_schemas/schema#",
+    private static final JsonMetaSchema DIAL_META_SCHEMA = JsonMetaSchema.builder("https://dial.epam.com/custom_application_schemas/schema#",
                     JsonMetaSchema.getV7())
             .keyword(new DialMetaKeyword())
             .keyword(new DialFileKeyword())
             .format(new DialFileFormat())
             .build();
 
-    private static final JsonSchemaFactory schemaFactory = JsonSchemaFactory.builder()
-            .metaSchema(dialMetaSchema)
-            .defaultMetaSchemaIri(dialMetaSchema.getIri())
+    private static final JsonSchemaFactory SCHEMA_FACTORY = JsonSchemaFactory.builder()
+            .metaSchema(DIAL_META_SCHEMA)
+            .defaultMetaSchemaIri(DIAL_META_SCHEMA.getIri())
             .build();
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> filterPropertiesWithCollector(
-            Map<String, Object> customProps, String schema, String collectorName) {
+    private static Map<String, Object> filterProperties(Map<String, Object> customProps, String schema, String collectorName) {
         try {
-            JsonSchema appSchema = schemaFactory.getSchema(schema);
+            JsonSchema appSchema = SCHEMA_FACTORY.getSchema(schema);
             CollectorContext collectorContext = new CollectorContext();
             String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(customProps);
             Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
@@ -54,10 +54,9 @@ public class CustomApplicationUtils {
             if (!validationResult.isEmpty()) {
                 throw new CustomAppValidationException("Failed to validate custom app against the schema", validationResult);
             }
-            ListCollector<String> propsCollector =
-                    (ListCollector<String>) collectorContext.getCollectorMap().get(collectorName);
+            ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get(collectorName);
             if (propsCollector == null) {
-                return Map.of();
+                return Collections.emptyMap();
             }
             Map<String, Object> result = new HashMap<>();
             for (String propertyName : propsCollector.collect()) {
@@ -74,10 +73,9 @@ public class CustomApplicationUtils {
     public static Map<String, Object> getCustomServerProperties(Config config, Application application) {
         String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
         if (customApplicationSchema == null) {
-            return Map.of();
+            return Collections.emptyMap();
         }
-        return filterPropertiesWithCollector(application.getCustomProperties(),
-                customApplicationSchema, "server");
+        return filterProperties(application.getCustomProperties(), customApplicationSchema, "server");
     }
 
     public static String getCustomApplicationEndpoint(Config config, Application application) {
@@ -110,14 +108,12 @@ public class CustomApplicationUtils {
             return application;
         }
         Application copy = new Application(application);
-        Map<String, Object> appWithClientOptionsOnly = filterPropertiesWithCollector(application.getCustomProperties(),
-                customApplicationSchema, "client");
+        Map<String, Object> appWithClientOptionsOnly = filterProperties(application.getCustomProperties(), customApplicationSchema, "client");
         copy.setCustomProperties(appWithClientOptionsOnly);
         return copy;
     }
 
-    public static Application filterCustomClientPropertiesWhenNoWriteAccess(ProxyContext ctx, ResourceDescriptor resource,
-                                                                            Application application) {
+    public static Application filterCustomClientPropertiesWhenNoWriteAccess(ProxyContext ctx, ResourceDescriptor resource, Application application) {
         if (!ctx.getProxy().getAccessService().hasWriteAccess(resource, ctx)) {
             application = filterCustomClientProperties(ctx.getConfig(), application);
         }
@@ -125,14 +121,13 @@ public class CustomApplicationUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
-                                                    ResourceService resourceService) {
+    public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService, ResourceService resourceService) {
         try {
             String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
             if (customApplicationSchema == null) {
-                return List.of();
+                return Collections.emptyList();
             }
-            JsonSchema appSchema = schemaFactory.getSchema(customApplicationSchema);
+            JsonSchema appSchema = SCHEMA_FACTORY.getSchema(customApplicationSchema);
             CollectorContext collectorContext = new CollectorContext();
             String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(application.getCustomProperties());
             Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
@@ -140,13 +135,12 @@ public class CustomApplicationUtils {
             if (!validationResult.isEmpty()) {
                 throw new CustomAppValidationException("Failed to validate custom app against the schema", validationResult);
             }
-            ListCollector<String> propsCollector =
-                    (ListCollector<String>) collectorContext.getCollectorMap().get("file");
+            ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get("file");
             List<ResourceDescriptor> result = new ArrayList<>();
             for (String item : propsCollector.collect()) {
                 ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
                 if (!resourceService.hasResource(descriptor)) {
-                    throw new CustomAppValidationException("Resource listed as dependent to the application not found or inaccessable: " + item);
+                    throw new CustomAppValidationException("Resource listed as dependent to the application not found or inaccessible: " + item);
                 }
                 result.add(descriptor);
             }
@@ -157,5 +151,4 @@ public class CustomApplicationUtils {
             throw new CustomAppValidationException("Failed to obtain list of files attached to the custom app", e);
         }
     }
-
 }
