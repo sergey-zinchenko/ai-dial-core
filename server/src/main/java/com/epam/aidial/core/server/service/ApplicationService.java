@@ -228,8 +228,7 @@ public class ApplicationService {
             Config config = context.getConfig();
             List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService,
                     resourceService);
-            files.stream().filter(resource -> !(resourceService.hasResource(resource)
-                            && context.getProxy().getAccessService().hasReadAccess(resource, context)))
+            files.stream().filter(resource -> !(context.getProxy().getAccessService().hasReadAccess(resource, context)))
                     .findAny().ifPresent(file -> {
                         throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
                     });
