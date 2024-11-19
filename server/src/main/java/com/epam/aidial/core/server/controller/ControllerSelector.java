@@ -74,7 +74,7 @@ public class ControllerSelector {
 
     private static final Pattern USER_INFO = Pattern.compile("^/v1/user/info$");
 
-    private static final Pattern APP_SCHEMAS = Pattern.compile("^/v1/custom_application_schemas(/list|/schema)?$");
+    private static final Pattern APP_SCHEMAS = Pattern.compile("^/v1/ops/custom_application_schemas(/list|/schema)?$");
 
     static {
         // GET routes
