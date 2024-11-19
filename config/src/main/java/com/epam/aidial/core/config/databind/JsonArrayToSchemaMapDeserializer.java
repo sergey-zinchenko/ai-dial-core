@@ -8,9 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class JsonArrayToSchemaMapDeserializer extends JsonDeserializer<Map<String, String>> {
 
@@ -20,7 +19,7 @@ public class JsonArrayToSchemaMapDeserializer extends JsonDeserializer<Map<Strin
         if (!tree.isArray()) {
             throw InvalidFormatException.from(jsonParser, "Expected a JSON array of schemas", tree.toString(), Map.class);
         }
-        Map<String, String> result = Map.of();
+        Map<String, String> result = new HashMap<>();
         for (int i = 0; i < tree.size(); i++) {
             TreeNode value = tree.get(i);
             if (!value.isObject()) {
@@ -32,8 +31,7 @@ public class JsonArrayToSchemaMapDeserializer extends JsonDeserializer<Map<Strin
                         valueNode.toPrettyString(), Map.class);
             }
             String schemaId = valueNode.get("$id").asText();
-            result = Stream.concat(result.entrySet().stream(), Stream.of(Map.entry(schemaId, valueNode.toString())))
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            result.put(schemaId, valueNode.toString());
         }
         return result;
     }
