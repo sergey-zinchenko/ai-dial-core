@@ -2,10 +2,8 @@ package com.epam.aidial.core.metaschemas;
 
 import lombok.experimental.UtilityClass;
 
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.stream.Collectors;
+import java.nio.charset.StandardCharsets;
 
 @UtilityClass
 public class MetaSchemaHolder {
@@ -16,9 +14,7 @@ public class MetaSchemaHolder {
         try (InputStream inputStream = MetaSchemaHolder.class.getClassLoader()
                 .getResourceAsStream("custom-application-schemas/schema")) {
             assert inputStream != null;
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-                return reader.lines().collect(Collectors.joining("\n"));
-            }
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new RuntimeException("Failed to load custom application meta schema", e);
         }
