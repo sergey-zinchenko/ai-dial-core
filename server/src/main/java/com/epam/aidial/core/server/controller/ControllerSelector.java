@@ -11,7 +11,6 @@ import io.vertx.core.http.impl.HttpServerRequestInternal;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -173,7 +172,18 @@ public class ControllerSelector {
             return () -> controller.handle(deploymentId, getter, false);
         });
         get(USER_INFO, (proxy, context, pathMatcher) -> new UserInfoController(context));
-        get(APP_SCHEMAS, (proxy, context, pathMatcher) -> new AppSchemasController(context));
+        get(APP_SCHEMAS, (proxy, context, pathMatcher) -> {
+            AppSchemaController controller = new AppSchemaController(context);
+            String operation = pathMatcher.group(1);
+            if (operation == null) {
+                return controller::handleGetSchema;
+            }
+            return switch (operation) {
+                case "/list" -> controller::handleListSchemas;
+                case "/schema" -> controller::handleGetMetaSchema;
+                default -> null;
+            };
+        });
 
         // POST routes
         post(PATTERN_POST_DEPLOYMENT, (proxy, context, pathMatcher) -> {
