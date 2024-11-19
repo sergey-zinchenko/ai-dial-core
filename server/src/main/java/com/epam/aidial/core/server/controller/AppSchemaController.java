@@ -15,8 +15,6 @@ import io.vertx.core.http.HttpServerRequest;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URI;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +53,7 @@ public class AppSchemaController {
 
         URI schemaId;
         try {
-            schemaId = URI.create(URLDecoder.decode(schemaIdParam, StandardCharsets.UTF_8));
+            schemaId = URI.create(schemaIdParam);
         } catch (IllegalArgumentException e) {
             throw new HttpException(HttpStatus.BAD_REQUEST, "Schema ID is required");
         }
