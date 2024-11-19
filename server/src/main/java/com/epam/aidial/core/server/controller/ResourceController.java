@@ -179,7 +179,6 @@ public class ResourceController extends AccessControlBaseController {
             Config config = context.getConfig();
             List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService,
                     resourceService);
-            log.error(application.getCustomProperties().toString());
             files.stream().filter(resource -> !(resourceService.hasResource(resource)
                             && accessService.hasReadAccess(resource, context)))
                     .findAny().ifPresent(file -> {
@@ -225,14 +224,16 @@ public class ResourceController extends AccessControlBaseController {
         Future<ResourceItemMetadata> responseFuture;
 
         if (descriptor.getType() == ResourceTypes.APPLICATION) {
-            responseFuture =  requestFuture.compose(pair -> {
+            responseFuture = requestFuture.compose(pair -> {
                 EtagHeader etag = pair.getKey();
                 Application application = ProxyUtil.convertToObject(pair.getValue(), Application.class);
-                validateCustomApplication(application);
-                return vertx.executeBlocking(() -> applicationService.putApplication(descriptor, etag, application).getKey(), false);
+                return vertx.executeBlocking(() -> {
+                    validateCustomApplication(application);
+                    return applicationService.putApplication(descriptor, etag, application).getKey();
+                }, false);
             });
         } else {
-           responseFuture =  requestFuture.compose(pair -> {
+            responseFuture = requestFuture.compose(pair -> {
                 EtagHeader etag = pair.getKey();
                 String body = pair.getValue();
                 validateRequestBody(descriptor, body);
@@ -269,7 +270,7 @@ public class ResourceController extends AccessControlBaseController {
                         if (descriptor.getType() == ResourceTypes.APPLICATION) {
                             applicationService.deleteApplication(descriptor, etag);
                         } else {
-                           deleted = resourceService.deleteResource(descriptor, etag);
+                            deleted = resourceService.deleteResource(descriptor, etag);
                         }
 
                         if (!deleted) {
