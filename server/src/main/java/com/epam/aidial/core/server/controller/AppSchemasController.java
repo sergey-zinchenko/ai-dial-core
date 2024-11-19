@@ -8,6 +8,7 @@ import com.epam.aidial.core.storage.http.HttpStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.vertx.core.Future;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerRequest;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,9 +23,11 @@ import java.util.Map;
 @Slf4j
 public class AppSchemasController implements Controller {
     private final ProxyContext context;
+    private final Vertx vertx;
 
     public AppSchemasController(ProxyContext context) {
         this.context = context;
+        this.vertx = context.getProxy().getVertx();
     }
 
     private static final String LIST_SCHEMAS_RELATIVE_PATH = "list";
@@ -48,7 +51,8 @@ public class AppSchemasController implements Controller {
 
     private Future<?> handleGetMetaSchema() {
         try {
-            return context.respond(HttpStatus.OK, MetaSchemaHolder.getCustomApplicationMetaSchema());
+            return vertx.executeBlocking(MetaSchemaHolder::getCustomApplicationMetaSchema)
+                    .onSuccess(metaSchema -> context.respond(HttpStatus.OK, metaSchema));
         } catch (Throwable e) {
             log.error(FAILED_READ_META_SCHEMA_MESSAGE, e);
             return context.respond(HttpStatus.INTERNAL_SERVER_ERROR, FAILED_READ_META_SCHEMA_MESSAGE);
