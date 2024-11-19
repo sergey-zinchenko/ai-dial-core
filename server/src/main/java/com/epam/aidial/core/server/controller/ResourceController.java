@@ -45,21 +45,19 @@ import static com.epam.aidial.core.storage.http.HttpStatus.INTERNAL_SERVER_ERROR
 public class ResourceController extends AccessControlBaseController {
 
     private final Vertx vertx;
-    private final ResourceService service;
+    private final ResourceService resourceService;
     private final ShareService shareService;
     private final LockService lockService;
     private final ApplicationService applicationService;
     private final InvitationService invitationService;
     private final boolean metadata;
     private final AccessService accessService;
-    private final ResourceService resourceService;
     private final EncryptionService encryptionService;
 
     public ResourceController(Proxy proxy, ProxyContext context, boolean metadata) {
         // PUT and DELETE require write access, GET - read
         super(proxy, context, !HttpMethod.GET.equals(context.getRequest().method()));
         this.vertx = proxy.getVertx();
-        this.service = proxy.getResourceService();
         this.applicationService = proxy.getApplicationService();
         this.shareService = proxy.getShareService();
         this.accessService = proxy.getAccessService();
@@ -110,7 +108,7 @@ public class ResourceController extends AccessControlBaseController {
             return context.respond(BAD_REQUEST, "Bad query parameters. Limit must be in [0, 1000] range. Recursive must be true/false");
         }
 
-        vertx.executeBlocking(() -> service.getMetadata(descriptor, token, limit, recursive), false)
+        vertx.executeBlocking(() -> resourceService.getMetadata(descriptor, token, limit, recursive), false)
                 .onSuccess(result -> {
                     if (result == null) {
                         context.respond(HttpStatus.NOT_FOUND, "Not found: " + descriptor.getUrl());
@@ -166,7 +164,7 @@ public class ResourceController extends AccessControlBaseController {
 
     private Future<Pair<ResourceItemMetadata, String>> getResourceData(ResourceDescriptor descriptor, EtagHeader etag) {
         return vertx.executeBlocking(() -> {
-            Pair<ResourceItemMetadata, String> result = service.getResourceWithMetadata(descriptor, etag);
+            Pair<ResourceItemMetadata, String> result = resourceService.getResourceWithMetadata(descriptor, etag);
 
             if (result == null) {
                 throw new ResourceNotFoundException();
@@ -205,7 +203,7 @@ public class ResourceController extends AccessControlBaseController {
         }
 
         int contentLength = ProxyUtil.contentLength(context.getRequest(), 0);
-        int contentLimit = service.getMaxSize();
+        int contentLimit = resourceService.getMaxSize();
 
         if (contentLength > contentLimit) {
             String message = "Resource size: %s exceeds max limit: %s".formatted(contentLength, contentLimit);
@@ -238,7 +236,7 @@ public class ResourceController extends AccessControlBaseController {
                 EtagHeader etag = pair.getKey();
                 String body = pair.getValue();
                 validateRequestBody(descriptor, body);
-                return vertx.executeBlocking(() -> service.putResource(descriptor, body, etag), false);
+                return vertx.executeBlocking(() -> resourceService.putResource(descriptor, body, etag), false);
             });
         }
 
@@ -271,7 +269,7 @@ public class ResourceController extends AccessControlBaseController {
                         if (descriptor.getType() == ResourceTypes.APPLICATION) {
                             applicationService.deleteApplication(descriptor, etag);
                         } else {
-                           deleted = service.deleteResource(descriptor, etag);
+                           deleted = resourceService.deleteResource(descriptor, etag);
                         }
 
                         if (!deleted) {
