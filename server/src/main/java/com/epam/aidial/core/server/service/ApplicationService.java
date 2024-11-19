@@ -1,6 +1,7 @@
 package com.epam.aidial.core.server.service;
 
 import com.epam.aidial.core.config.Application;
+import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Features;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.controller.ApplicationUtil;
@@ -10,6 +11,7 @@ import com.epam.aidial.core.server.data.SharedResourcesResponse;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.util.BucketBuilder;
+import com.epam.aidial.core.server.util.CustomAppValidationException;
 import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
@@ -25,10 +27,10 @@ import com.epam.aidial.core.storage.service.LockService;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
+import jakarta.validation.ValidationException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -44,6 +46,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static com.epam.aidial.core.storage.http.HttpStatus.BAD_REQUEST;
+import static com.epam.aidial.core.storage.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 @Slf4j
 public class ApplicationService {
@@ -216,6 +221,24 @@ public class ApplicationService {
         } while (nextToken != null);
 
         return applications;
+    }
+
+    public void validateCustomApplication(Application application, ProxyContext context) {
+        try {
+            Config config = context.getConfig();
+            List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService,
+                    resourceService);
+            files.stream().filter(resource -> !(resourceService.hasResource(resource)
+                            && context.getProxy().getAccessService().hasReadAccess(resource, context)))
+                    .findAny().ifPresent(file -> {
+                        throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
+                    });
+            CustomApplicationUtils.modifyEndpointForCustomApplication(config, application);
+        } catch (ValidationException | IllegalArgumentException e) {
+            throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
+        } catch (CustomAppValidationException e) {
+            throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application validation failed", e);
+        }
     }
 
     public Pair<ResourceItemMetadata, Application> putApplication(ResourceDescriptor resource, EtagHeader etag, Application application) {
