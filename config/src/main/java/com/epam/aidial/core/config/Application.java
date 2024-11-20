@@ -15,7 +15,6 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 @Data
 @Accessors(chain = true)
@@ -39,7 +38,6 @@ public class Application extends Deployment {
         return customProperties;
     }
 
-    @Nullable
     @JsonAlias({"customAppSchemaId", "custom_app_schema_id"})
     private URI customAppSchemaId;
 
