@@ -14,6 +14,8 @@ import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.networknt.schema.CollectorContext;
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonMetaSchema;
@@ -158,6 +160,29 @@ public class CustomApplicationUtils {
             throw e;
         } catch (Exception e) {
             throw new CustomAppValidationException("Failed to obtain list of files attached to the custom app", e);
+        }
+    }
+
+    public static void replaceLinksInJsonNode(JsonNode node, Map<String, String> replacementLinks, JsonNode parent, String fieldName) {
+        if (node.isObject()) {
+            node.fields().forEachRemaining(entry -> replaceLinksInJsonNode(entry.getValue(), replacementLinks, node, entry.getKey()));
+        } else if (node.isArray()) {
+            for (int i = 0; i < node.size(); i++) {
+                JsonNode childNode = node.get(i);
+                if (childNode.isTextual()) {
+                    String replacement = replacementLinks.get(childNode.textValue());
+                    if (replacement != null) {
+                        ((ArrayNode) node).set(i, replacement);
+                    }
+                } else {
+                    replaceLinksInJsonNode(childNode, replacementLinks, node, String.valueOf(i));
+                }
+            }
+        } else if (node.isTextual()) {
+            String replacement = replacementLinks.get(node.textValue());
+            if (replacement != null && parent.isObject()) {
+                ((ObjectNode) parent).put(fieldName, replacement);
+            }
         }
     }
 }

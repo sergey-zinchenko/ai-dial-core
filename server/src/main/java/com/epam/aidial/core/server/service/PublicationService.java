@@ -26,8 +26,6 @@ import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.mutable.MutableObject;
 
@@ -43,6 +41,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+
+import static com.epam.aidial.core.server.util.CustomApplicationUtils.replaceLinksInJsonNode;
 
 @RequiredArgsConstructor
 public class PublicationService {
@@ -613,28 +613,7 @@ public class PublicationService {
         application.setCustomProperties(customPropertiesMap);
     }
 
-    private void replaceLinksInJsonNode(JsonNode node, Map<String, String> replacementLinks, JsonNode parent, String fieldName) {
-        if (node.isObject()) {
-            node.fields().forEachRemaining(entry -> replaceLinksInJsonNode(entry.getValue(), replacementLinks, node, entry.getKey()));
-        } else if (node.isArray()) {
-            for (int i = 0; i < node.size(); i++) {
-                JsonNode childNode = node.get(i);
-                if (childNode.isTextual()) {
-                    String replacement = replacementLinks.get(childNode.textValue());
-                    if (replacement != null) {
-                        ((ArrayNode) node).set(i, replacement);
-                    }
-                } else {
-                    replaceLinksInJsonNode(childNode, replacementLinks, node, String.valueOf(i));
-                }
-            }
-        } else if (node.isTextual()) {
-            String replacement = replacementLinks.get(node.textValue());
-            if (replacement != null && parent.isObject()) {
-                ((ObjectNode) parent).put(fieldName, replacement);
-            }
-        }
-    }
+
 
     private void copyReviewToTargetResources(List<Publication.Resource> resources) {
         Map<String, String> replacementLinks = new HashMap<>();
