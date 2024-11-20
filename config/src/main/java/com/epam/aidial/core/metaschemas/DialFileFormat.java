@@ -1,4 +1,4 @@
-package com.epam.aidial.core.server.validation;
+package com.epam.aidial.core.metaschemas;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.networknt.schema.ExecutionContext;

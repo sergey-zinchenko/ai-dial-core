@@ -19,18 +19,15 @@ import java.net.URI;
 import java.util.Map;
 import java.util.Set;
 
+import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.getMetaschemaBuilder;
+
 @Slf4j
 public class CustomApplicationsConformToSchemasValidator implements ConstraintValidator<CustomApplicationsConformToSchemas, Config> {
 
-    private static final JsonMetaSchema DIAL_META_SCHEMA = JsonMetaSchema.builder(MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID,  JsonMetaSchema.getV7())
-            .keyword(new NonValidationKeyword("dial:custom-application-type-editor-url"))
-            .keyword(new NonValidationKeyword("dial:custom-application-type-display-name"))
-            .keyword(new NonValidationKeyword("dial:custom-application-type-completion-endpoint"))
+
+    private static final JsonMetaSchema DIAL_META_SCHEMA = getMetaschemaBuilder()
             .keyword(new NonValidationKeyword("dial:meta"))
-            .keyword(new NonValidationKeyword("dial:property-kind"))
-            .keyword(new NonValidationKeyword("dial:property-order"))
             .keyword(new NonValidationKeyword("dial:file"))
-            .keyword(new NonValidationKeyword("$defs"))
             .build();
 
     @Override

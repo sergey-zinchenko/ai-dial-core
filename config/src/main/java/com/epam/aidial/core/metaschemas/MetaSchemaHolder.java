@@ -1,5 +1,7 @@
 package com.epam.aidial.core.metaschemas;
 
+import com.networknt.schema.JsonMetaSchema;
+import com.networknt.schema.NonValidationKeyword;
 import lombok.experimental.UtilityClass;
 
 import java.io.InputStream;
@@ -18,5 +20,16 @@ public class MetaSchemaHolder {
         } catch (Exception e) {
             throw new RuntimeException("Failed to load custom application meta schema", e);
         }
+    }
+
+    public static JsonMetaSchema.Builder getMetaschemaBuilder() {
+        return JsonMetaSchema.builder(MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID,  JsonMetaSchema.getV7())
+                .keyword(new NonValidationKeyword("dial:custom-application-type-editor-url"))
+                .keyword(new NonValidationKeyword("dial:custom-application-type-display-name"))
+                .keyword(new NonValidationKeyword("dial:custom-application-type-completion-endpoint"))
+                .keyword(new NonValidationKeyword("dial:property-kind"))
+                .keyword(new NonValidationKeyword("dial:property-order"))
+                .keyword(new NonValidationKeyword("$defs"))
+                .format(new DialFileFormat());
     }
 }
