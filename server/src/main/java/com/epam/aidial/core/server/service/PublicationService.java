@@ -378,20 +378,21 @@ public class PublicationService {
         validateRules(publication);
     }
 
+    private String buildTargetFolderForCustomAppFiles(Publication publication) {
+        String tempTargetFolder = publication.getTargetFolder();
+        int separatorIndex = tempTargetFolder.indexOf(ResourceDescriptor.PATH_SEPARATOR);
+        if (separatorIndex != -1) {
+            tempTargetFolder = tempTargetFolder.substring(separatorIndex + 1);
+        }
+        return tempTargetFolder;
+    }
+
     private void addCustomApplicationRelatedFiles(ProxyContext context, Publication publication) {
         List<String> existingUrls = publication.getResources().stream()
                 .map(Publication.Resource::getSourceUrl)
                 .toList();
 
-        final String targetFolder;
-            {
-                String tempTargetFolder = publication.getTargetFolder();
-                int separatorIndex = tempTargetFolder.indexOf(ResourceDescriptor.PATH_SEPARATOR);
-                if (separatorIndex != -1) {
-                    tempTargetFolder = tempTargetFolder.substring(separatorIndex + 1);
-                }
-                targetFolder = tempTargetFolder;
-            }
+        final String targetFolder = buildTargetFolderForCustomAppFiles(publication);
 
         List<Publication.Resource> linkedResourcesToPublish = publication.getResources().stream()
                 .filter(resource -> resource.getAction() != Publication.ResourceAction.DELETE)
@@ -612,7 +613,6 @@ public class PublicationService {
 
         application.setCustomProperties(customPropertiesMap);
     }
-
 
 
     private void copyReviewToTargetResources(List<Publication.Resource> resources) {
