@@ -22,6 +22,9 @@ public class JsonArrayToSchemaMapDeserializer extends JsonDeserializer<Map<Strin
         Map<String, String> result = new HashMap<>();
         for (int i = 0; i < tree.size(); i++) {
             TreeNode value = tree.get(i);
+            if (value == null) {
+                throw InvalidFormatException.from(jsonParser, Map.class, "Null value is not expected in schema array");
+            }
             if (!value.isObject()) {
                 continue;
             }

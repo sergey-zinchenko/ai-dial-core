@@ -228,7 +228,6 @@ public class ApplicationService {
                     .findAny().ifPresent(file -> {
                         throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
                     });
-            CustomApplicationUtils.modifyEndpointForCustomApplication(config, application);
         } catch (ValidationException | IllegalArgumentException e) {
             throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
         } catch (CustomAppValidationException e) {
@@ -335,8 +334,6 @@ public class ApplicationService {
                     if (isPublicOrReview) {
                         throw new HttpException(HttpStatus.CONFLICT, "The application function must be deleted in public/review bucket");
                     }
-                    application.setCustomAppSchemaId(existing.getCustomAppSchemaId());
-                    application.setCustomProperties(existing.getCustomProperties());
                     application.setEndpoint(existing.getEndpoint());
                     application.getFeatures().setRateEndpoint(existing.getFeatures().getRateEndpoint());
                     application.getFeatures().setTokenizeEndpoint(existing.getFeatures().getTokenizeEndpoint());
@@ -446,9 +443,12 @@ public class ApplicationService {
     private void prepareApplication(ResourceDescriptor resource, Application application) {
         verifyApplication(resource);
 
-        if (application.getEndpoint() == null && application.getFunction() == null
-                && application.getCustomAppSchemaId() == null) {
-            throw new IllegalArgumentException("Application endpoint or function or schema must be provided");
+        if (application.getCustomAppSchemaId() != null) {
+            if (application.getEndpoint() != null) {
+                throw new IllegalArgumentException("Endpoint must not be set for custom application");
+            }
+        } else if (application.getEndpoint() == null && application.getFunction() == null) {
+            throw new IllegalArgumentException("Application endpoint or function must be provided");
         }
 
         application.setName(resource.getUrl());

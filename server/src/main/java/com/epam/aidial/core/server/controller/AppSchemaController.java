@@ -43,7 +43,7 @@ public class AppSchemaController {
                 .onFailure(throwable -> context.respond(throwable, FAILED_READ_SCHEMA_MESSAGE));
     }
 
-    private JsonNode getSchema() throws JsonProcessingException {
+    private ObjectNode getSchema() throws JsonProcessingException {
         HttpServerRequest request = context.getRequest();
         String schemaIdParam = request.getParam(ID_PARAM);
 
@@ -60,11 +60,11 @@ public class AppSchemaController {
 
         String schema = context.getConfig().getCustomApplicationSchemas().get(schemaId.toString());
         if (schema == null) {
-            return null;
+            throw new HttpException(HttpStatus.NOT_FOUND, "Schema not found");
         }
-        JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
+        ObjectNode schemaNode = (ObjectNode) ProxyUtil.MAPPER.readTree(schema);
         if (schemaNode.has(COMPLETION_ENDPOINT_FIELD)) {
-            ((ObjectNode) schemaNode).remove(COMPLETION_ENDPOINT_FIELD); //we need to remove completion endpoint from response to avoid disclosure
+            schemaNode.remove(COMPLETION_ENDPOINT_FIELD); //we need to remove completion endpoint from response to avoid disclosure
         }
         return schemaNode;
     }

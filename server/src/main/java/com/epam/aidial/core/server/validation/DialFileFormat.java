@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 public class DialFileFormat implements Format {
 
-    private static final Pattern PATTERN = Pattern.compile("files/[a-zA-Z0-9]+/.*");
+    private static final Pattern PATTERN = Pattern.compile("^files/[a-zA-Z0-9]+/.*$");
 
     @Override
     public boolean matches(ExecutionContext executionContext, ValidationContext validationContext, JsonNode value) {
