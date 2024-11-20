@@ -13,6 +13,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.RequestOptions;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHeaders;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -38,8 +40,8 @@ import static java.util.Collections.EMPTY_LIST;
 @Slf4j
 public class IdentityProvider {
 
-    // path to the claim of user roles in JWT
-    private final String[] rolePath;
+    // path(s) to the claim of user roles in JWT
+    private final List<String[]> rolePaths = new ArrayList<>();
 
     // Delimiter to split the roles if they are set as a single String
     private final String rolesDelimiter;
@@ -114,9 +116,23 @@ public class IdentityProvider {
             }
         }
 
-        String rolePathStr = Objects.requireNonNull(settings.getString("rolePath"), "rolePath is missed");
-        getUserRoleFn = factory.getUserRoleFn(rolePathStr);
-        rolePath = rolePathStr.split("\\.");
+        Object rolePathObj = Objects.requireNonNull(settings.getValue("rolePath"), "rolePath is missed");
+        List<String> rolePathList;
+
+        if (rolePathObj instanceof String rolePathStr) {
+            getUserRoleFn =  factory.getUserRoleFn(rolePathStr);
+            rolePathList = List.of(rolePathStr);
+        } else if (rolePathObj instanceof JsonArray rolePathArray) {
+            getUserRoleFn = null;
+            rolePathList = rolePathArray.stream().map(o -> (String) o).toList();
+        } else {
+            throw new IllegalArgumentException("rolePath should be either String or Array");
+        }
+
+        for (String rolePath : rolePathList) {
+            rolePaths.add(rolePath.split("\\."));
+        }
+
         rolesDelimiter = settings.getString("rolesDelimiter");
 
         loggingKey = settings.getString("loggingKey");
@@ -147,34 +163,41 @@ public class IdentityProvider {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private List<String> extractUserRoles(Map<String, Object> map) {
-        for (int i = 0; i < rolePath.length; i++) {
-            Object next = map.get(rolePath[i]);
-            if (next == null) {
+        List<String> result = new ArrayList<>();
+        for (String[] rolePath : rolePaths) {
+            result.addAll(extractUserRoles(map, rolePath));
+        }
+        return result;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private List<String> extractUserRoles(Map<String, Object> map, String[] rolePath) {
+        for (int i = 0; i < rolePath.length - 1; i++) {
+            if (map.get(rolePath[i]) instanceof Map next) {
+                map = next;
+            } else {
                 return EMPTY_LIST;
             }
-            if (i == rolePath.length - 1) {
-                if (next instanceof List) {
-                    return (List<String>) next;
-                } else if (next instanceof String) {
-                    if (rolesDelimiter != null) {
-                        return Arrays.stream(((String) next)
-                                .split(rolesDelimiter))
-                                .filter(s -> !s.isBlank())
-                                .toList();
-                    }
-                    return List.of((String) next);
-                }
-            } else {
-                if (next instanceof Map) {
-                    map = (Map<String, Object>) next;
-                } else {
-                    return EMPTY_LIST;
-                }
-            }
+        }
+        Object field = map.get(rolePath[rolePath.length - 1]);
+
+        if (field instanceof List list) {
+            return list;
+        }
+        if (field instanceof String string) {
+            return getRolesFromString(string);
         }
         return EMPTY_LIST;
+    }
+
+    private List<String> getRolesFromString(String rolesString) {
+        if (rolesDelimiter == null) {
+            return List.of(rolesString);
+        }
+        return Arrays.stream(rolesString.split(rolesDelimiter))
+                .filter(s -> !s.isBlank())
+                .toList();
     }
 
     public static DecodedJWT decodeJwtToken(String encodedToken) {
