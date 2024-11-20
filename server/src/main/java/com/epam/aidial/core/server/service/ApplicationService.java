@@ -1,7 +1,6 @@
 package com.epam.aidial.core.server.service;
 
 import com.epam.aidial.core.config.Application;
-import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Features;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.controller.ApplicationUtil;
@@ -14,7 +13,6 @@ import com.epam.aidial.core.server.util.BucketBuilder;
 import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
-import com.epam.aidial.core.server.validation.CustomAppValidationException;
 import com.epam.aidial.core.storage.blobstore.BlobStorageUtil;
 import com.epam.aidial.core.storage.data.MetadataBase;
 import com.epam.aidial.core.storage.data.NodeType;
@@ -30,7 +28,6 @@ import com.epam.aidial.core.storage.util.UrlUtil;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
-import jakarta.validation.ValidationException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -47,8 +44,6 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static com.epam.aidial.core.storage.http.HttpStatus.BAD_REQUEST;
-import static com.epam.aidial.core.storage.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 @Slf4j
 public class ApplicationService {
@@ -219,22 +214,6 @@ public class ApplicationService {
         return applications;
     }
 
-    public void validateCustomApplication(Application application, ProxyContext context) {
-        try {
-            Config config = context.getConfig();
-            List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService,
-                    resourceService);
-            files.stream().filter(resource -> !(context.getProxy().getAccessService().hasReadAccess(resource, context)))
-                    .findAny().ifPresent(file -> {
-                        throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
-                    });
-        } catch (ValidationException | IllegalArgumentException e) {
-            throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
-        } catch (CustomAppValidationException e) {
-            throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application validation failed", e);
-        }
-    }
-
     public Pair<ResourceItemMetadata, Application> putApplication(ResourceDescriptor resource, EtagHeader etag, Application application) {
         prepareApplication(resource, application);
 
@@ -256,7 +235,6 @@ public class ApplicationService {
                     if (isPublicOrReview(resource) && !function.getSourceFolder().equals(existing.getFunction().getSourceFolder())) {
                         throw new HttpException(HttpStatus.CONFLICT, "The application function source folder cannot be updated in public/review bucket");
                     }
-
                     application.setEndpoint(existing.getEndpoint());
                     application.getFeatures().setRateEndpoint(existing.getFeatures().getRateEndpoint());
                     application.getFeatures().setTokenizeEndpoint(existing.getFeatures().getTokenizeEndpoint());

@@ -1,19 +1,23 @@
 package com.epam.aidial.core.server.controller;
 
 import com.epam.aidial.core.config.Application;
+import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.data.Conversation;
 import com.epam.aidial.core.server.data.Prompt;
 import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.security.AccessService;
+import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.service.ApplicationService;
 import com.epam.aidial.core.server.service.InvitationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.service.ShareService;
+import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
+import com.epam.aidial.core.server.validation.CustomAppValidationException;
 import com.epam.aidial.core.storage.data.MetadataBase;
 import com.epam.aidial.core.storage.data.ResourceItemMetadata;
 import com.epam.aidial.core.storage.http.HttpException;
@@ -26,6 +30,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
+import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -33,12 +38,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static com.epam.aidial.core.storage.http.HttpStatus.BAD_REQUEST;
+import static com.epam.aidial.core.storage.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 @Slf4j
 @SuppressWarnings("checkstyle:Indentation")
 public class ResourceController extends AccessControlBaseController {
 
     private final Vertx vertx;
+    private final EncryptionService encryptionService;
     private final ResourceService resourceService;
     private final ShareService shareService;
     private final LockService lockService;
@@ -51,6 +58,7 @@ public class ResourceController extends AccessControlBaseController {
         // PUT and DELETE require write access, GET - read
         super(proxy, context, !HttpMethod.GET.equals(context.getRequest().method()));
         this.vertx = proxy.getVertx();
+        this.encryptionService = proxy.getEncryptionService();
         this.applicationService = proxy.getApplicationService();
         this.shareService = proxy.getShareService();
         this.accessService = proxy.getAccessService();
@@ -166,6 +174,22 @@ public class ResourceController extends AccessControlBaseController {
         }, false);
     }
 
+    private void validateCustomApplication(Application application) {
+        try {
+            Config config = context.getConfig();
+            List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService,
+                    resourceService);
+            files.stream().filter(resource -> !(accessService.hasReadAccess(resource, context)))
+                    .findAny().ifPresent(file -> {
+                        throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
+                    });
+        } catch (ValidationException | IllegalArgumentException e) {
+            throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
+        } catch (CustomAppValidationException e) {
+            throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application validation failed", e);
+        }
+    }
+
     private Future<?> putResource(ResourceDescriptor descriptor) {
         if (descriptor.isFolder()) {
             return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
@@ -202,7 +226,7 @@ public class ResourceController extends AccessControlBaseController {
                 EtagHeader etag = pair.getKey();
                 Application application = ProxyUtil.convertToObject(pair.getValue(), Application.class);
                 return vertx.executeBlocking(() -> {
-                    applicationService.validateCustomApplication(application, context);
+                    validateCustomApplication(application);
                     return applicationService.putApplication(descriptor, etag, application).getKey();
                 }, false);
             });
