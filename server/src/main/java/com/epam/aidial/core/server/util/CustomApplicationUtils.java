@@ -25,6 +25,7 @@ import com.networknt.schema.NonValidationKeyword;
 import com.networknt.schema.ValidationMessage;
 import lombok.experimental.UtilityClass;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,6 +55,18 @@ public class CustomApplicationUtils {
             .defaultMetaSchemaIri(DIAL_META_SCHEMA.getIri())
             .build();
 
+    private static String getCustomApplicationSchemaOrThrow(Config config, Application application) {
+        URI schemaId = application.getCustomAppSchemaId();
+        if (schemaId == null) {
+            return null;
+        }
+        String customApplicationSchema = config.getCustomApplicationSchema(schemaId);
+        if (customApplicationSchema == null) {
+            throw new CustomAppValidationException("Custom application schema not found: " + schemaId);
+        }
+        return customApplicationSchema;
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> filterProperties(Map<String, Object> customProps, String schema, String collectorName) {
         try {
@@ -82,7 +95,7 @@ public class CustomApplicationUtils {
     }
 
     public static Map<String, Object> getCustomServerProperties(Config config, Application application) {
-        String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
+        String customApplicationSchema = getCustomApplicationSchemaOrThrow(config, application);
         if (customApplicationSchema == null) {
             return Collections.emptyMap();
         }
@@ -91,7 +104,7 @@ public class CustomApplicationUtils {
 
     public static String getCustomApplicationEndpoint(Config config, Application application) {
         try {
-            String schema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
+            String schema = getCustomApplicationSchemaOrThrow(config, application);
             JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
             JsonNode endpointNode = schemaNode.get("dial:custom-application-type-completion-endpoint");
             if (endpointNode == null) {
@@ -114,7 +127,7 @@ public class CustomApplicationUtils {
     }
 
     public static Application filterCustomClientProperties(Config config, Application application) {
-        String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
+        String customApplicationSchema = getCustomApplicationSchemaOrThrow(config, application);
         if (customApplicationSchema == null) {
             return application;
         }
@@ -134,7 +147,7 @@ public class CustomApplicationUtils {
     @SuppressWarnings("unchecked")
     public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService, ResourceService resourceService) {
         try {
-            String customApplicationSchema = config.getCustomApplicationSchema(application.getCustomAppSchemaId());
+            String customApplicationSchema = getCustomApplicationSchemaOrThrow(config, application);
             if (customApplicationSchema == null) {
                 return Collections.emptyList();
             }
