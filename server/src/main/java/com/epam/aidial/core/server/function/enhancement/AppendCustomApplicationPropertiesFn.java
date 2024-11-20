@@ -8,7 +8,6 @@ import com.epam.aidial.core.server.function.BaseRequestFunction;
 import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.storage.http.HttpStatus;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.vertx.core.buffer.Buffer;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +44,8 @@ public class AppendCustomApplicationPropertiesFn extends BaseRequestFunction<Obj
         Map<String, Object> props = CustomApplicationUtils.getCustomServerProperties(context.getConfig(), application);
         ObjectNode customAppPropertiesNode = ProxyUtil.MAPPER.createObjectNode();
         for (Map.Entry<String, Object> entry : props.entrySet()) {
-            customAppPropertiesNode.put(entry.getKey(), entry.getValue().toString());
+            customAppPropertiesNode.putPOJO(entry.getKey(), entry.getValue());
+            appended = true;
         }
         tree.set("custom_application_properties", customAppPropertiesNode);
         return appended;

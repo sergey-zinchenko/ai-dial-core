@@ -120,7 +120,7 @@ public class ShareService {
         for (SharedResource sharedResource : request.getResources()) {
             ResourceDescriptor resource = getResourceFromLink(sharedResource.url());
             if (resource.getType() == ResourceTypes.APPLICATION) {
-                Application application = applicationService.getApplication(resource, null).getValue();
+                Application application = applicationService.getApplication(resource).getValue();
                 List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService, resourceService);
                 for (ResourceDescriptor file : files) {
                     if (!filesFromRequest.contains(file.getUrl())) {

@@ -92,7 +92,7 @@ public class DeploymentPostController {
     }
 
     private Future<?> handleDeployment(String deploymentId, String deploymentApi) {
-        return DeploymentController.selectDeployment(context, deploymentId)
+        return DeploymentController.selectDeployment(context, deploymentId, false, true)
                 .map(dep -> {
                     if (dep.getEndpoint() == null) {
                         throw new HttpException(HttpStatus.SERVICE_UNAVAILABLE, "");

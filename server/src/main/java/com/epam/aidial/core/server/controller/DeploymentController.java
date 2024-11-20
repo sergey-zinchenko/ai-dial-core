@@ -64,17 +64,28 @@ public class DeploymentController {
         return context.respond(HttpStatus.OK, list);
     }
 
-    public static Future<Deployment> selectDeployment(ProxyContext context, String id) {
+    public static Future<Deployment> selectDeployment(ProxyContext context, String id, boolean filterCustomProperties, boolean modifyEndpoint) {
         Deployment deployment = context.getConfig().selectDeployment(id);
+        Proxy proxy = context.getProxy();
         if (deployment != null) {
             if (!DeploymentController.hasAccess(context, deployment)) {
                 return Future.failedFuture(new PermissionDeniedException("Forbidden deployment: " + id));
             } else {
                 try {
                     if (deployment instanceof Application application) {
-                        application =
-                                CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), application);
-                        return Future.succeededFuture(application);
+                        if (!modifyEndpoint && !filterCustomProperties) {
+                            return Future.succeededFuture(deployment);
+                        }
+                        return proxy.getVertx().executeBlocking(() -> {
+                            Application modifiedApp = application;
+                            if (filterCustomProperties) {
+                                modifiedApp = CustomApplicationUtils.filterCustomClientProperties(context.getConfig(), application);
+                            }
+                            if (modifyEndpoint) {
+                                modifiedApp = CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), modifiedApp);
+                            }
+                            return modifiedApp;
+                        });
                     }
                     return Future.succeededFuture(deployment);
                 } catch (Throwable e) {
@@ -83,7 +94,7 @@ public class DeploymentController {
             }
         }
 
-        Proxy proxy = context.getProxy();
+
         return proxy.getVertx().executeBlocking(() -> {
             String url;
             ResourceDescriptor resource;
@@ -103,8 +114,15 @@ public class DeploymentController {
                 throw new PermissionDeniedException();
             }
 
-            Application app =  proxy.getApplicationService().getApplication(resource, context).getValue();
-            app = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
+            Application app = proxy.getApplicationService().getApplication(resource).getValue();
+
+            if (filterCustomProperties) {
+                app = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
+            }
+            if (modifyEndpoint) {
+                app = CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), app);
+            }
+
             return app;
         }, false);
     }

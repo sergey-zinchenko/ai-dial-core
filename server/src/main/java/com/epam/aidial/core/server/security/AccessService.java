@@ -62,9 +62,6 @@ public class AccessService {
     }
 
     public boolean hasWriteAccess(ResourceDescriptor resource, ProxyContext context) {
-        if (hasAdminAccess(context)) {
-            return true;
-        }
         Map<ResourceDescriptor, Set<ResourceAccessType>> permissions =
                 lookupPermissions(Set.of(resource), context, Set.of(ResourceAccessType.WRITE));
         return permissions.get(resource).contains(ResourceAccessType.WRITE);

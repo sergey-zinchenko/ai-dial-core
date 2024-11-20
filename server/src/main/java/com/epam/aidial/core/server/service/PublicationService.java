@@ -400,7 +400,7 @@ public class PublicationService {
                     if (source.getType() != ResourceTypes.APPLICATION) {
                         return Stream.empty();
                     }
-                    Application application = applicationService.getApplication(source, context).getValue();
+                    Application application = applicationService.getApplication(source).getValue();
                     if (application.getCustomAppSchemaId() == null) {
                         return Stream.empty();
                     }
@@ -505,7 +505,7 @@ public class PublicationService {
         }
 
         if (target.getType() == ResourceTypes.APPLICATION && !isAdmin) {
-            Application application = applicationService.getApplication(target, null).getValue();
+            Application application = applicationService.getApplication(target).getValue();
             if (application.getFunction() != null && !application.getFunction().getAuthorBucket().equals(bucketName)) {
                 throw new IllegalArgumentException("Target application has a different author: " + targetUrl);
             }

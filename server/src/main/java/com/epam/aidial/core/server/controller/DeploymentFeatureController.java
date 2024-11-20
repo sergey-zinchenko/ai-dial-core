@@ -34,7 +34,7 @@ public class DeploymentFeatureController {
     }
 
     public Future<?> handle(String deploymentId, Function<Deployment, String> endpointGetter, boolean requireEndpoint) {
-        DeploymentController.selectDeployment(context, deploymentId).map(dep -> {
+        DeploymentController.selectDeployment(context, deploymentId, false, true).map(dep -> {
             String endpoint = endpointGetter.apply(dep);
             context.setDeployment(dep);
             context.getRequest().body()

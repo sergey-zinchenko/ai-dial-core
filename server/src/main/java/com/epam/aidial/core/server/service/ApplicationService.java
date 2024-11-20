@@ -138,7 +138,7 @@ public class ApplicationService {
             ResourceDescriptor resource = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
 
             if (meta instanceof ResourceItemMetadata) {
-                Application application = getApplication(resource, context).getValue();
+                Application application = getApplication(resource).getValue();
                 application = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
                 list.add(application);
             } else {
@@ -155,11 +155,11 @@ public class ApplicationService {
         return getApplications(folder, page -> accessService.filterForbidden(context, folder, page), context);
     }
 
-    public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource, ProxyContext context) {
-        return getApplication(resource, EtagHeader.ANY,  context);
+    public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource) {
+        return getApplication(resource, EtagHeader.ANY);
     }
 
-    public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource, EtagHeader etagHeader, ProxyContext context) {
+    public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource, EtagHeader etagHeader) {
         verifyApplication(resource);
         Pair<ResourceItemMetadata, String> result = resourceService.getResourceWithMetadata(resource, etagHeader);
 
@@ -172,10 +172,6 @@ public class ApplicationService {
 
         if (application == null) {
             throw new ResourceNotFoundException("Application is not found: " + resource.getUrl());
-        }
-
-        if (context != null) {
-            application = CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), application);
         }
 
         return Pair.of(meta, application);
@@ -208,7 +204,7 @@ public class ApplicationService {
                 if (meta.getNodeType() == NodeType.ITEM && meta.getResourceType() == ResourceTypes.APPLICATION) {
                     try {
                         ResourceDescriptor item = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
-                        Application application = getApplication(item, ctx).getValue();
+                        Application application = getApplication(item).getValue();
                         application = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
                         applications.add(application);
                     } catch (ResourceNotFoundException ignore) {
@@ -311,7 +307,7 @@ public class ApplicationService {
         verifyApplication(source);
         verifyApplication(destination);
 
-        Application application = getApplication(source, null).getValue();
+        Application application = getApplication(source).getValue();
         Application.Function function = application.getFunction();
 
         EtagHeader etag = overwrite ? EtagHeader.ANY : EtagHeader.NEW_ONLY;
@@ -434,11 +430,11 @@ public class ApplicationService {
         return result.getValue();
     }
 
-    public Application.Logs getApplicationLogs(ResourceDescriptor resource, ProxyContext context) {
+    public Application.Logs getApplicationLogs(ResourceDescriptor resource) {
         verifyApplication(resource);
         controller.verifyActive();
 
-        Application application = getApplication(resource, context).getValue();
+        Application application = getApplication(resource).getValue();
 
         if (application.getFunction() == null || application.getFunction().getStatus() != Application.Function.Status.DEPLOYED) {
             throw new HttpException(HttpStatus.CONFLICT, "Application is not started: " + resource.getUrl());
@@ -544,7 +540,7 @@ public class ApplicationService {
                 throw new IllegalStateException("Application function is locked");
             }
 
-            Application application = getApplication(resource, context).getValue();
+            Application application = getApplication(resource).getValue();
             Application.Function function = application.getFunction();
 
             if (function == null) {
@@ -598,7 +594,7 @@ public class ApplicationService {
             Application application;
 
             try {
-                application = getApplication(resource, null).getValue();
+                application = getApplication(resource).getValue();
             } catch (ResourceNotFoundException e) {
                 application = null;
             }
