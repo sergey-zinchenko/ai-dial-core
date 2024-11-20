@@ -16,11 +16,11 @@ public class ConformToMetaSchemaValidator implements ConstraintValidator<Conform
     private static final JsonSchema SCHEMA = SCHEMA_FACTORY.getSchema(MetaSchemaHolder.getCustomApplicationMetaSchema());
 
     @Override
-    public boolean isValid(Map<String, String> stringStringMap, ConstraintValidatorContext context) {
-        if (stringStringMap == null) {
+    public boolean isValid(Map<String, String> idSchemaMap, ConstraintValidatorContext context) {
+        if (idSchemaMap == null) {
             return true;
         }
-        for (Map.Entry<String, String> entry : stringStringMap.entrySet()) {
+        for (Map.Entry<String, String> entry : idSchemaMap.entrySet()) {
             if (!SCHEMA.validate(entry.getValue(), InputFormat.JSON).isEmpty()) {
                 context.disableDefaultConstraintViolation();
                 context.buildConstraintViolationWithTemplate(context.getDefaultConstraintMessageTemplate())
