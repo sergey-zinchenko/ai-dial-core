@@ -5,6 +5,7 @@ import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.metaschemas.MetaSchemaHolder;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.validation.CustomAppValidationException;
 import com.epam.aidial.core.server.validation.DialFileFormat;
 import com.epam.aidial.core.server.validation.DialFileKeyword;
 import com.epam.aidial.core.server.validation.DialMetaKeyword;

@@ -1,4 +1,4 @@
-package com.epam.aidial.core.server.util;
+package com.epam.aidial.core.server.validation;
 
 import com.networknt.schema.ValidationMessage;
 import lombok.Getter;
