@@ -417,8 +417,7 @@ public class PublicationService {
                 })
                 .toList();
 
-        publication.setResources(Stream.concat(publication.getResources().stream(), linkedResourcesToPublish.stream())
-                .collect(Collectors.toList()));
+        publication.getResources().addAll(linkedResourcesToPublish);
     }
 
     private void validateResourceForAddition(ProxyContext context, Publication.Resource resource, String targetFolder,
