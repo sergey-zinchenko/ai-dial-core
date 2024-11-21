@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.getMetaschemaBuilder;
 
@@ -62,7 +63,7 @@ public class CustomApplicationUtils {
     private static Map<String, Object> filterProperties(Map<String, Object> customProps, String schema, String collectorName) {
         try {
             JsonSchema appSchema = SCHEMA_FACTORY.getSchema(schema);
-            CollectorContext collectorContext = new CollectorContext();
+            CollectorContext collectorContext = new CollectorContext(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
             String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(customProps);
             Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
                     e -> e.setCollectorContext(collectorContext));
@@ -143,7 +144,7 @@ public class CustomApplicationUtils {
                 return Collections.emptyList();
             }
             JsonSchema appSchema = SCHEMA_FACTORY.getSchema(customApplicationSchema);
-            CollectorContext collectorContext = new CollectorContext();
+            CollectorContext collectorContext = new CollectorContext(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
             String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(application.getCustomProperties());
             Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
                     e -> e.setCollectorContext(collectorContext));
