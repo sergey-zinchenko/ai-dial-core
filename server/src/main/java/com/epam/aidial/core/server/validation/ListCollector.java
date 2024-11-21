@@ -15,9 +15,7 @@ public class ListCollector<T> implements Collector<List<T>> {
             return;
         }
         List<T> list = (List<T>) o;
-        synchronized (references) {
-            references.addAll(list);
-        }
+        references.addAll(list);
     }
 
     @Override
