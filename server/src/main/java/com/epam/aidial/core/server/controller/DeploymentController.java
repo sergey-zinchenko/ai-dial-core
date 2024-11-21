@@ -116,11 +116,13 @@ public class DeploymentController {
 
             Application app = proxy.getApplicationService().getApplication(resource).getValue();
 
-            if (filterCustomProperties) {
-                app = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
-            }
-            if (modifyEndpoint) {
-                app = CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), app);
+            if (app.getCustomAppSchemaId() != null) {
+                if (filterCustomProperties) {
+                    app = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
+                }
+                if (modifyEndpoint) {
+                    app = CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), app);
+                }
             }
 
             return app;
