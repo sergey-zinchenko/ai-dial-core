@@ -24,7 +24,6 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @RequiredArgsConstructor
 public class DeploymentController {
@@ -39,7 +38,7 @@ public class DeploymentController {
             return context.respond(HttpStatus.NOT_FOUND);
         }
 
-        if (!DeploymentController.hasAccess(context, model)) {
+        if (!model.hasAccess(context.getUserRoles())) {
             return context.respond(HttpStatus.FORBIDDEN);
         }
 
@@ -52,7 +51,7 @@ public class DeploymentController {
         List<DeploymentData> deployments = new ArrayList<>();
 
         for (Model model : config.getModels().values()) {
-            if (hasAccess(context, model)) {
+            if (model.hasAccess(context.getUserRoles())) {
                 DeploymentData deployment = createDeployment(model);
                 deployments.add(deployment);
             }
@@ -68,7 +67,7 @@ public class DeploymentController {
         Deployment deployment = context.getConfig().selectDeployment(id);
         Proxy proxy = context.getProxy();
         if (deployment != null) {
-            if (!DeploymentController.hasAccess(context, deployment)) {
+            if (!deployment.hasAccess(context.getUserRoles())) {
                 return Future.failedFuture(new PermissionDeniedException("Forbidden deployment: " + id));
             } else {
                 try {
@@ -77,6 +76,9 @@ public class DeploymentController {
                             return Future.succeededFuture(deployment);
                         }
                         return proxy.getVertx().executeBlocking(() -> {
+                            if (application.getCustomAppSchemaId() == null) {
+                                return application;
+                            }
                             Application modifiedApp = application;
                             if (filterCustomProperties) {
                                 modifiedApp = CustomApplicationUtils.filterCustomClientProperties(context.getConfig(), application);
@@ -127,18 +129,6 @@ public class DeploymentController {
 
             return app;
         }, false);
-    }
-
-    public static boolean hasAccess(ProxyContext context, Deployment deployment) {
-        Set<String> expectedUserRoles = deployment.getUserRoles();
-        List<String> actualUserRoles = context.getUserRoles();
-
-        if (expectedUserRoles == null) {
-            return true;
-        }
-
-        return !expectedUserRoles.isEmpty()
-                && actualUserRoles.stream().anyMatch(expectedUserRoles::contains);
     }
 
     private static DeploymentData createDeployment(Model model) {

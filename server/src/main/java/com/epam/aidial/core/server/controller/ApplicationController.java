@@ -65,7 +65,7 @@ public class ApplicationController {
         return proxy.getVertx().executeBlocking(() -> {
             List<Application> list = new ArrayList<>();
             for (Application application : config.getApplications().values()) {
-                if (DeploymentController.hasAccess(context, application)) {
+                if (application.hasAccess(context.getUserRoles())) {
                     application = CustomApplicationUtils.filterCustomClientProperties(config, application);
                     list.add(application);
                 }

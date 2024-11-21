@@ -110,7 +110,7 @@ public class DeploymentPostController {
                 })
                 .compose(dep -> {
                     if (dep instanceof Model && !context.hasNextInterceptor()) {
-                        return proxy.getRateLimiter().limit(context);
+                        return proxy.getRateLimiter().limit(context, dep);
                     } else {
                         return Future.succeededFuture(RateLimitResult.SUCCESS);
                     }
@@ -269,14 +269,16 @@ public class DeploymentPostController {
 
         try (InputStream stream = new ByteBufInputStream(requestBody.getByteBuf())) {
             ObjectNode tree = (ObjectNode) ProxyUtil.MAPPER.readTree(stream);
-            Throwable error = ProxyUtil.processChain(tree, enhancementFunctions);
-            if (error != null) {
-                finalizeRequest();
-                return;
+            if (ProxyUtil.processChain(tree, enhancementFunctions)) {
+                context.setRequestBody(Buffer.buffer(ProxyUtil.MAPPER.writeValueAsBytes(tree)));
             }
-        } catch (IOException e) {
-            respond(HttpStatus.BAD_REQUEST);
-            log.warn("Can't parse JSON request body. Trace: {}. Span: {}. Error:",
+        } catch (Throwable e) {
+            if (e instanceof HttpException httpException) {
+                respond(httpException.getStatus(), httpException.getMessage());
+            } else {
+                respond(HttpStatus.BAD_REQUEST);
+            }
+            log.warn("Can't process JSON request body. Trace: {}. Span: {}. Error:",
                     context.getTraceId(), context.getSpanId(), e);
             return;
         }

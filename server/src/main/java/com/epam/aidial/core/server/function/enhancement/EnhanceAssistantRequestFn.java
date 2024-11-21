@@ -9,13 +9,11 @@ import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.controller.DeploymentController;
 import com.epam.aidial.core.server.function.BaseRequestFunction;
-import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.vertx.core.buffer.Buffer;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -30,30 +28,16 @@ public class EnhanceAssistantRequestFn extends BaseRequestFunction<ObjectNode> {
     }
 
     @Override
-    public Throwable apply(ObjectNode tree) {
+    public Boolean apply(ObjectNode tree) {
         Deployment deployment = context.getDeployment();
         if (deployment instanceof Assistant) {
-            try {
-                Map.Entry<Buffer, Map<String, String>> enhancedRequest = enhanceAssistantRequest(context, tree);
-                context.setRequestBody(enhancedRequest.getKey());
-                context.setRequestHeaders(enhancedRequest.getValue());
-            } catch (HttpException e) {
-                context.respond(e.getStatus(), e.getMessage());
-                log.warn("Can't enhance assistant request. Trace: {}. Span: {}. Error: {}",
-                        context.getTraceId(), context.getSpanId(), e.getMessage());
-                return e;
-            } catch (Throwable e) {
-                context.respond(HttpStatus.BAD_REQUEST);
-                log.warn("Can't enhance assistant request. Trace: {}. Span: {}. Error: {}",
-                        context.getTraceId(), context.getSpanId(), e.getMessage());
-                return e;
-            }
+            enhanceAssistantRequest(context, tree);
+            return true;
         }
-        return null;
+        return false;
     }
 
-    private static Map.Entry<Buffer, Map<String, String>> enhanceAssistantRequest(ProxyContext context, ObjectNode tree)
-            throws Exception {
+    private static void enhanceAssistantRequest(ProxyContext context, ObjectNode tree) {
         Config config = context.getConfig();
         Assistant assistant = (Assistant) context.getDeployment();
 
@@ -85,7 +69,7 @@ public class EnhanceAssistantRequestFn extends BaseRequestFunction<ObjectNode> {
                 throw new HttpException(HttpStatus.NOT_FOUND, "No addon: " + name);
             }
 
-            if (!DeploymentController.hasAccess(context, addon)) {
+            if (!addon.hasAccess(context.getUserRoles())) {
                 throw new HttpException(HttpStatus.FORBIDDEN, "Forbidden addon: " + name);
             }
 
@@ -104,12 +88,11 @@ public class EnhanceAssistantRequestFn extends BaseRequestFunction<ObjectNode> {
             throw new HttpException(HttpStatus.NOT_FOUND, "No model: " + name);
         }
 
-        if (!DeploymentController.hasAccess(context, model)) {
+        if (!model.hasAccess(context.getUserRoles())) {
             throw new HttpException(HttpStatus.FORBIDDEN, "Forbidden model: " + name);
         }
 
-        Buffer updatedBody = Buffer.buffer(ProxyUtil.MAPPER.writeValueAsBytes(tree));
-        return Map.entry(updatedBody, headers);
+        context.setRequestHeaders(headers);
     }
 
     private static void deletePrompt(ArrayNode messages) {
