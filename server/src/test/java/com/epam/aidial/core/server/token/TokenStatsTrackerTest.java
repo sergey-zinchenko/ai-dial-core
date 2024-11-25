@@ -86,7 +86,7 @@ public class TokenStatsTrackerTest {
     }
 
     @BeforeEach
-    public void beforeEach() throws Exception {
+    public void beforeEach() {
         RKeys keys = redissonClient.getKeys();
         for (String key : keys.getKeys()) {
             keys.delete(key);

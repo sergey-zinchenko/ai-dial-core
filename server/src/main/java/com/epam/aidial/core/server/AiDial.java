@@ -125,15 +125,16 @@ public class AiDial {
             NotificationService notificationService = new NotificationService(resourceService, encryptionService);
             ApplicationService applicationService = new ApplicationService(vertx, client, redis,
                     encryptionService, resourceService, lockService, generator, settings("applications"));
+            ResourceOperationService resourceOperationService = new ResourceOperationService(applicationService,
+                    resourceService, invitationService, shareService, lockService);
             PublicationService publicationService = new PublicationService(encryptionService, resourceService, accessService,
-                    ruleService, notificationService, applicationService, generator, clock);
+                    ruleService, notificationService, applicationService, resourceOperationService, generator, clock);
             RateLimiter rateLimiter = new RateLimiter(vertx, resourceService);
 
             ApiKeyStore apiKeyStore = new ApiKeyStore(resourceService, vertx);
             ConfigStore configStore = new FileConfigStore(vertx, settings("config"), apiKeyStore, upstreamRouteProvider);
 
             TokenStatsTracker tokenStatsTracker = new TokenStatsTracker(vertx, resourceService);
-            ResourceOperationService resourceOperationService = new ResourceOperationService(applicationService, resourceService, invitationService, shareService);
 
             HeartbeatService heartbeatService = new HeartbeatService(
                     vertx, settings("resources").getLong("heartbeatPeriod"));

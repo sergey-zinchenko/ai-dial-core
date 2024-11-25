@@ -60,6 +60,7 @@ public class PublicationService {
     private final RuleService ruleService;
     private final NotificationService notificationService;
     private final ApplicationService applicationService;
+    private final ResourceOperationService resourceOperationService;
     private final Supplier<String> ids;
     private final LongSupplier clock;
 
@@ -598,7 +599,7 @@ public class PublicationService {
             String url = resource.getReviewUrl();
             ResourceDescriptor descriptor = ResourceDescriptorFactory.fromPrivateUrl(url, encryption);
             verifyResourceType(descriptor);
-            deleteResource(descriptor);
+            resourceOperationService.deleteResource(descriptor, EtagHeader.ANY);
         }
     }
 
@@ -607,19 +608,7 @@ public class PublicationService {
             String url = resource.getTargetUrl();
             ResourceDescriptor descriptor = ResourceDescriptorFactory.fromPublicUrl(url);
             verifyResourceType(descriptor);
-            deleteResource(descriptor);
-        }
-    }
-
-    private void deleteResource(ResourceDescriptor descriptor) {
-        try {
-            if (descriptor.getType() == ResourceTypes.APPLICATION) {
-                applicationService.deleteApplication(descriptor, EtagHeader.ANY);
-            } else {
-                resourceService.deleteResource(descriptor, EtagHeader.ANY);
-            }
-        } catch (ResourceNotFoundException e) {
-            // ignore
+            resourceOperationService.deleteResource(descriptor, EtagHeader.ANY);
         }
     }
 
