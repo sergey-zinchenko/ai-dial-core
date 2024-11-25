@@ -378,7 +378,7 @@ public class PublicationService {
         validateRules(publication);
     }
 
-    private String buildTargetFolderForCustomAppFiles(Publication publication) {
+    private static String buildTargetFolderForCustomAppFiles(Publication publication) {
         String tempTargetFolder = publication.getTargetFolder();
         int separatorIndex = tempTargetFolder.indexOf(ResourceDescriptor.PATH_SEPARATOR);
         if (separatorIndex != -1) {
@@ -405,11 +405,13 @@ public class PublicationService {
                     if (application.getCustomAppSchemaId() == null) {
                         return Stream.empty();
                     }
+                    Publication.ResourceAction action = resource.getAction();
                     return CustomApplicationUtils.getFiles(context.getConfig(), application, encryption, resourceService)
                             .stream()
-                            .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl()))
+                            .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl())
+                                    && !sourceDescriptor.isPublic())
                             .map(sourceDescriptor -> new Publication.Resource()
-                                    .setAction(resource.getAction())
+                                    .setAction(action)
                                     .setSourceUrl(sourceDescriptor.getUrl())
                                     .setTargetUrl(ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE,
                                             ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PATH_SEPARATOR,
