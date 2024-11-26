@@ -11,6 +11,7 @@ import com.epam.aidial.core.server.validation.ListCollector;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -133,6 +134,18 @@ public class CustomApplicationUtils {
             application = filterCustomClientProperties(ctx.getConfig(), application);
         }
         return application;
+    }
+
+    public static void replaceCustomAppFiles(Application application, Map<String, String> replacementLinks) {
+        if (application.getCustomAppSchemaId() == null) {
+            return;
+        }
+        JsonNode customProperties = ProxyUtil.MAPPER.convertValue(application.getCustomProperties(), JsonNode.class);
+        replaceLinksInJsonNode(customProperties, replacementLinks, null, null);
+        Map<String, Object> customPropertiesMap = ProxyUtil.MAPPER.convertValue(customProperties, new TypeReference<>() {
+        });
+
+        application.setCustomProperties(customPropertiesMap);
     }
 
     @SuppressWarnings("unchecked")

@@ -25,7 +25,6 @@ import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.mutable.MutableObject;
 
@@ -42,7 +41,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
-import static com.epam.aidial.core.server.util.CustomApplicationUtils.replaceLinksInJsonNode;
+import static com.epam.aidial.core.server.util.CustomApplicationUtils.replaceCustomAppFiles;
 
 @RequiredArgsConstructor
 public class PublicationService {
@@ -603,17 +602,7 @@ public class PublicationService {
         }
     }
 
-    private void replaceCustomAppFiles(Application application, Map<String, String> replacementLinks) {
-        if (application.getCustomAppSchemaId() == null) {
-            return;
-        }
-        JsonNode customProperties = ProxyUtil.MAPPER.convertValue(application.getCustomProperties(), JsonNode.class);
-        replaceLinksInJsonNode(customProperties, replacementLinks, null, null);
-        Map<String, Object> customPropertiesMap = ProxyUtil.MAPPER.convertValue(customProperties, new TypeReference<>() {
-        });
 
-        application.setCustomProperties(customPropertiesMap);
-    }
 
 
     private void copyReviewToTargetResources(List<Publication.Resource> resources) {
