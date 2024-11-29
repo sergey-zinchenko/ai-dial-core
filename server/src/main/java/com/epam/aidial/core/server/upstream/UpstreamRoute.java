@@ -6,6 +6,9 @@ import io.vertx.core.http.HttpClientResponse;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -28,30 +31,30 @@ import javax.annotation.Nullable;
 @Slf4j
 public class UpstreamRoute {
 
-    private static final long DEFAULT_RETRY_AFTER_SECONDS_VALUE = 30;
-
-    private final LoadBalancer<UpstreamState> balancer;
+    private final TieredBalancer balancer;
     /**
      * The maximum number of attempts the route may retry
      */
     private final int maxRetryAttempts;
 
     /**
-     * Current upstream state
+     * Current upstream
      */
     @Nullable
-    private UpstreamState upstreamState;
+    private Upstream upstream;
     /**
      * Attempt counter
      */
     @Getter
     private int attemptCount;
 
-    public UpstreamRoute(LoadBalancer<UpstreamState> balancer, int maxRetryAttempts) {
+    private final Set<Upstream> usedUpstreams = new HashSet<>();
+
+    public UpstreamRoute(TieredBalancer balancer, int maxRetryAttempts) {
         this.balancer = balancer;
         this.maxRetryAttempts = maxRetryAttempts;
-        this.upstreamState = balancer.next();
-        this.attemptCount = upstreamState == null ? 0 : 1;
+        this.upstream = balancer.next(usedUpstreams);
+        this.attemptCount = upstream == null ? 0 : 1;
     }
 
     /**
@@ -60,7 +63,7 @@ public class UpstreamRoute {
      * @return true if upstream available, false otherwise
      */
     public boolean available() {
-        return upstreamState != null && attemptCount <= maxRetryAttempts;
+        return upstream != null && attemptCount <= maxRetryAttempts;
     }
 
     /**
@@ -72,12 +75,12 @@ public class UpstreamRoute {
     public Upstream next() {
         // if max attempts reached - do not call balancer
         if (attemptCount + 1 > maxRetryAttempts) {
-            this.upstreamState = null;
+            this.upstream = null;
             return null;
         }
         attemptCount++;
-        this.upstreamState = balancer.next();
-        return upstreamState == null ? null : upstreamState.getUpstream();
+        this.upstream = balancer.next(usedUpstreams);
+        return upstream;
     }
 
     /**
@@ -85,40 +88,44 @@ public class UpstreamRoute {
      */
     @Nullable
     public Upstream get() {
-        return upstreamState == null ? null : upstreamState.getUpstream();
+        return upstream;
+    }
+
+    public void fail(HttpStatus status) {
+        fail(status, -1);
+    }
+
+    public void fail(HttpClientResponse response) {
+        long retryAfter = retrieveRetryAfterSeconds(response);
+        HttpStatus status = HttpStatus.fromStatusCode(response.statusCode());
+        fail(status, retryAfter);
     }
 
     /**
      * Fail current upstream due to error
      *
      * @param status - response http status; typically, 5xx or 429
-     * @param retryAfterSeconds - the amount of seconds after which upstream should be available; if status 5xx this value ignored
+     * @param retryAfterSeconds - the amount of seconds after which upstream should be available
      */
-    public void fail(HttpStatus status, long retryAfterSeconds) {
-        if (upstreamState != null) {
-            upstreamState.failed(status, retryAfterSeconds);
-        }
-    }
-
-    public void fail(HttpStatus status) {
-        fail(status, DEFAULT_RETRY_AFTER_SECONDS_VALUE);
-    }
-
-    public void fail(HttpClientResponse response) {
-        fail(HttpStatus.fromStatusCode(response.statusCode()), calculateRetryAfterSeconds(response));
+    void fail(HttpStatus status, long retryAfterSeconds) {
+        verifyCurrentUpstream();
+        balancer.fail(upstream, status, retryAfterSeconds);
     }
 
     public void succeed() {
-        if (upstreamState != null) {
-            upstreamState.succeeded();
-        }
+        verifyCurrentUpstream();
+        balancer.succeed(upstream);
+    }
+
+    private void verifyCurrentUpstream() {
+        Objects.requireNonNull(upstream, "current upstream is undefined");
     }
 
     /**
      * @param response http response from upstream
-     * @return the amount of seconds after which upstream should be available
+     * @return the amount of seconds after which upstream should be available or -1 if the value is not provided
      */
-    private static long calculateRetryAfterSeconds(HttpClientResponse response) {
+    private static long retrieveRetryAfterSeconds(HttpClientResponse response) {
         try {
             String retryAfterHeaderValue = response.getHeader("Retry-After");
             if (retryAfterHeaderValue != null) {
@@ -127,9 +134,9 @@ public class UpstreamRoute {
             }
             log.debug("Retry-after header not found, status code {}", response.statusCode());
         } catch (Exception e) {
-            log.warn("Failed to parse Retry-After header value, fallback to the default value: " + DEFAULT_RETRY_AFTER_SECONDS_VALUE, e);
+            log.warn("Failed to parse Retry-After header value, fallback to the default value: " + UpstreamState.DEFAULT_RETRY_AFTER_SECONDS_VALUE, e);
         }
 
-        return DEFAULT_RETRY_AFTER_SECONDS_VALUE;
+        return -1;
     }
 }
