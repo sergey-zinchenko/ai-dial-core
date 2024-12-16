@@ -78,6 +78,50 @@ class RateBucketTest {
     }
 
     @Test
+    void testWeekBucket() {
+        bucket = new RateBucket(RateWindow.WEEK);
+
+        update(0, 0);
+        add(0, 10, 10);
+        add(0, 20, 30);
+        update(0, 30);
+
+        add(1, 30, 60);
+        add(6, 40, 100);
+        update(6, 100);
+
+        add(7, 10, 80);
+        update(7, 80);
+
+        add(8, 5, 55);
+        update(8, 55);
+
+        update(15, 0);
+    }
+
+    @Test
+    void testMonthBucket() {
+        bucket = new RateBucket(RateWindow.MONTH);
+
+        update(0, 0);
+        add(0, 10, 10);
+        add(0, 20, 30);
+        update(0, 30);
+
+        add(1, 30, 60);
+        add(29, 40, 100);
+        update(29, 100);
+
+        add(30, 10, 80);
+        update(30, 80);
+
+        add(31, 5, 55);
+        update(31, 55);
+
+        update(61, 0);
+    }
+
+    @Test
     public void testRetryAfterDay() {
         bucket = new RateBucket(RateWindow.DAY);
 
