@@ -18,7 +18,7 @@ import java.util.Set;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-@CustomApplicationsConformToSchemas(message = "All custom applications should conform to their schemas")
+@CustomApplicationsConformToSchemas(message = "All custom schema-rich applications should conform to their schemas")
 public class Config {
     public static final String ASSISTANT = "assistant";
 
@@ -35,9 +35,8 @@ public class Config {
 
     @JsonDeserialize(using = JsonArrayToSchemaMapDeserializer.class)
     @JsonSerialize(using = MapToJsonArraySerializer.class)
-    @JsonProperty("custom_application_schemas")
-    @ConformToMetaSchema(message = "All custom application schemas should conform to meta schema")
-    private Map<String, String> customApplicationSchemas = Map.of();
+    @ConformToMetaSchema(message = "All custom application type schemas should conform to meta schema")
+    private Map<String, String> applicationTypeSchemas = Map.of();
 
 
     public Deployment selectDeployment(String deploymentId) {
@@ -60,6 +59,6 @@ public class Config {
         if (schemaId == null) {
             return null;
         }
-        return customApplicationSchemas.get(schemaId.toString());
+        return applicationTypeSchemas.get(schemaId.toString());
     }
 }

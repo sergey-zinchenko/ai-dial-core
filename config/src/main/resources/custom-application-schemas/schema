@@ -1,40 +1,40 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dial.epam.com/custom_application_schemas/schema#",
+  "$id": "https://dial.epam.com/application_type_schemas/schema#",
   "title": "Core meta-schema defining Ai DIAL custom application schemas",
   "allOf": [
     {
       "$ref": "#/definitions/topLevelSchema"
     },
     {
-      "$ref": "#/definitions/ai-dial-root-schema"
+      "$ref": "#/definitions/dialRootSchema"
     }
   ],
   "definitions": {
-    "ai-dial-root-schema": {
+    "dialRootSchema": {
       "properties": {
-        "dial:custom-application-type-editor-url": {
+        "dial:applicationTypeEditorUrl": {
           "type": "string",
           "format": "uri",
           "description": "URL to the editor UI of the custom application of given type"
         },
-        "dial:custom-application-type-completion-endpoint": {
+        "dial:applicationTypeCompletionEndpoint": {
           "type": "string",
           "format": "uri",
           "description": "URL to the completion endpoint of the custom application of given type"
         },
-        "dial:custom-application-type-display-name": {
+        "dial:applicationTypeDisplayName": {
           "type": "string",
           "description": "Display name of the custom application of given type"
         }
       },
       "required": [
-        "dial:custom-application-type-editor-url",
-        "dial:custom-application-type-completion-endpoint",
-        "dial:custom-application-type-display-name"
+        "dial:applicationTypeEditorUrl",
+        "dial:applicationTypeCompletionEndpoint",
+        "dial:applicationTypeDisplayName"
       ]
     },
-    "ai-dial-file-format-and-type-schema": {
+    "dialFileFormatAndTypeSchema": {
       "$comment": "Sub-schema defining the type format and dial:file properties",
       "properties": {
         "format": {
@@ -80,7 +80,7 @@
             ],
             "properties": {
               "format": {
-                "const": "dial-file"
+                "const": "dial-file-encoded"
               },
               "type": {
                 "const": "string"
@@ -93,7 +93,7 @@
     "topLevelSchema": {
       "allOf": [
         {
-          "$ref": "#/definitions/ai-dial-file-format-and-type-schema"
+          "$ref": "#/definitions/dialFileFormatAndTypeSchema"
         },
         {
           "type": [
@@ -282,7 +282,7 @@
     "notTopLevelSchema": {
       "allOf": [
         {
-          "$ref": "#/definitions/ai-dial-file-format-and-type-schema"
+          "$ref": "#/definitions/dialFileFormatAndTypeSchema"
         },
         {
           "type": [
@@ -474,7 +474,7 @@
           "$ref": "#/definitions/notTopLevelSchema"
         },
         {
-          "$ref": "#/definitions/aiDialPropertyMetaSchema"
+          "$ref": "#/definitions/dialPropertyMetaSchema"
         }
       ]
     },
@@ -494,14 +494,14 @@
         }
       ]
     },
-    "ai-dial-property-kind": {
+    "dialPropertyKind": {
       "$comment": "Enum defining the property to be available to the clients or to be server-side only",
       "enum": [
         "server",
         "client"
       ]
     },
-    "aiDialPropertyMetaSchema": {
+    "dialPropertyMetaSchema": {
       "$comment": "Sub-schema defining the meta-property with information AI Dial purposes",
       "type": "object",
       "properties": {
@@ -510,18 +510,18 @@
             "object"
           ],
           "properties": {
-            "dial:property-order": {
+            "dial:propertyOrder": {
               "type": "number",
               "description": "Order in which the property should be displayed in the default editor UI"
             },
-            "dial:property-kind": {
+            "dial:propertyKind": {
               "description": "Is property available for the clients or server-side only",
-              "$ref": "#/definitions/ai-dial-property-kind"
+              "$ref": "#/definitions/dialPropertyKind"
             }
           },
           "required": [
-            "dial:property-order",
-            "dial:property-kind"
+            "dial:propertyOrder",
+            "dial:propertyKind"
           ]
         }
       },

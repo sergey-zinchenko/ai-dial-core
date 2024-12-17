@@ -47,7 +47,7 @@ public class CustomApplicationUtils {
             .defaultMetaSchemaIri(DIAL_META_SCHEMA.getIri())
             .build();
 
-    private static String getCustomApplicationSchemaOrThrow(Config config, Application application) {
+    static String getCustomApplicationSchemaOrThrow(Config config, Application application) {
         URI schemaId = application.getCustomAppSchemaId();
         if (schemaId == null) {
             return null;
@@ -98,7 +98,7 @@ public class CustomApplicationUtils {
         try {
             String schema = getCustomApplicationSchemaOrThrow(config, application);
             JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
-            JsonNode endpointNode = schemaNode.get("dial:custom-application-type-completion-endpoint");
+            JsonNode endpointNode = schemaNode.get("dial:applicationTypeCompletionEndpoint");
             if (endpointNode == null) {
                 throw new CustomAppValidationException("Custom application schema does not contain completion endpoint");
             }

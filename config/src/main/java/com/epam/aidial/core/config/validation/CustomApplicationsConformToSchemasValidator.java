@@ -2,7 +2,6 @@ package com.epam.aidial.core.config.validation;
 
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
-import com.epam.aidial.core.metaschemas.MetaSchemaHolder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonMetaSchema;
@@ -36,7 +35,7 @@ public class CustomApplicationsConformToSchemasValidator implements ConstraintVa
             return true;
         }
         JsonSchemaFactory schemaFactory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7, builder ->
-                builder.schemaLoaders(loaders -> loaders.schemas(value.getCustomApplicationSchemas()))
+                builder.schemaLoaders(loaders -> loaders.schemas(value.getApplicationTypeSchemas()))
                         .metaSchema(DIAL_META_SCHEMA)
         );
 

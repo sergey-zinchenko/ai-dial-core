@@ -38,7 +38,7 @@ public class DialMetaKeyword implements Keyword {
                                           JsonSchema parentSchema, Keyword keyword,
                                           ValidationContext validationContext, boolean suppressSubSchemaRetrieval) {
             super(schemaLocation, evaluationPath, schemaNode, parentSchema, ERROR_MESSAGE_TYPE, keyword, validationContext, suppressSubSchemaRetrieval);
-            propertyKindString = schemaNode.get("dial:property-kind").asText();
+            propertyKindString = schemaNode.get("dial:propertyKind").asText();
         }
 
         @Override

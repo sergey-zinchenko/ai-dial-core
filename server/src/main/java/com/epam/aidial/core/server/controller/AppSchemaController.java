@@ -58,7 +58,7 @@ public class AppSchemaController {
             throw new HttpException(HttpStatus.BAD_REQUEST, "Schema ID is required");
         }
 
-        String schema = context.getConfig().getCustomApplicationSchemas().get(schemaId.toString());
+        String schema = context.getConfig().getApplicationTypeSchemas().get(schemaId.toString());
         if (schema == null) {
             throw new HttpException(HttpStatus.NOT_FOUND, "Schema not found");
         }
@@ -79,7 +79,7 @@ public class AppSchemaController {
         Config config = context.getConfig();
         List<JsonNode> filteredSchemas = new ArrayList<>();
 
-        for (Map.Entry<String, String> entry : config.getCustomApplicationSchemas().entrySet()) {
+        for (Map.Entry<String, String> entry : config.getApplicationTypeSchemas().entrySet()) {
             JsonNode schemaNode;
             schemaNode = ProxyUtil.MAPPER.readTree(entry.getValue());
 
