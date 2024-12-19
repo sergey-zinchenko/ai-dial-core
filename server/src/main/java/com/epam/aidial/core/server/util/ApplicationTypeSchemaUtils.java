@@ -4,7 +4,7 @@ import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.security.EncryptionService;
-import com.epam.aidial.core.server.validation.CustomAppValidationException;
+import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.epam.aidial.core.server.validation.DialFileKeyword;
 import com.epam.aidial.core.server.validation.DialMetaKeyword;
 import com.epam.aidial.core.server.validation.ListCollector;
@@ -35,7 +35,7 @@ import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.getMetaschemaBui
 
 
 @UtilityClass
-public class CustomApplicationUtils {
+public class ApplicationTypeSchemaUtils {
 
     private static final JsonMetaSchema DIAL_META_SCHEMA = getMetaschemaBuilder()
             .keyword(new DialMetaKeyword())
@@ -54,7 +54,7 @@ public class CustomApplicationUtils {
         }
         String customApplicationSchema = config.getCustomApplicationSchema(schemaId);
         if (customApplicationSchema == null) {
-            throw new CustomAppValidationException("Custom application schema not found: " + schemaId);
+            throw new ApplicationTypeSchemaValidationException("Custom application schema not found: " + schemaId);
         }
         return customApplicationSchema;
     }
@@ -68,7 +68,7 @@ public class CustomApplicationUtils {
             Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
                     e -> e.setCollectorContext(collectorContext));
             if (!validationResult.isEmpty()) {
-                throw new CustomAppValidationException("Failed to validate custom app against the schema", validationResult);
+                throw new ApplicationTypeSchemaValidationException("Failed to validate custom app against the schema", validationResult);
             }
             ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get(collectorName);
             if (propsCollector == null) {
@@ -79,10 +79,10 @@ public class CustomApplicationUtils {
                 result.put(propertyName, customProps.get(propertyName));
             }
             return result;
-        } catch (CustomAppValidationException e) {
+        } catch (ApplicationTypeSchemaValidationException e) {
             throw e;
         } catch (Throwable e) {
-            throw new CustomAppValidationException("Failed to filter custom properties", e);
+            throw new ApplicationTypeSchemaProcessingException("Failed to filter custom properties", e);
         }
     }
 
@@ -100,11 +100,11 @@ public class CustomApplicationUtils {
             JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
             JsonNode endpointNode = schemaNode.get("dial:applicationTypeCompletionEndpoint");
             if (endpointNode == null) {
-                throw new CustomAppValidationException("Custom application schema does not contain completion endpoint");
+                throw new ApplicationTypeSchemaProcessingException("Custom application schema does not contain completion endpoint");
             }
             return endpointNode.asText();
         } catch (JsonProcessingException e) {
-            throw new CustomAppValidationException("Failed to get custom application endpoint", e);
+            throw new ApplicationTypeSchemaProcessingException("Failed to get custom application endpoint", e);
         }
     }
 
@@ -161,22 +161,26 @@ public class CustomApplicationUtils {
             Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
                     e -> e.setCollectorContext(collectorContext));
             if (!validationResult.isEmpty()) {
-                throw new CustomAppValidationException("Failed to validate custom app against the schema", validationResult);
+                throw new ApplicationTypeSchemaValidationException("Failed to validate custom app against the schema", validationResult);
             }
             ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get("file");
             List<ResourceDescriptor> result = new ArrayList<>();
             for (String item : propsCollector.collect()) {
-                ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
-                if (!resourceService.hasResource(descriptor)) {
-                    throw new CustomAppValidationException("Resource listed as dependent to the application not found or inaccessible: " + item);
+                try {
+                    ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
+                    if (!resourceService.hasResource(descriptor)) {
+                        throw new ApplicationTypeSchemaValidationException("Resource listed as dependent to the application not found or inaccessible: " + item);
+                    }
+                    result.add(descriptor);
+                } catch (IllegalArgumentException e) {
+                    throw new ApplicationTypeSchemaValidationException("Failed to get resource descriptor for url: " + item, e);
                 }
-                result.add(descriptor);
             }
             return result;
-        } catch (CustomAppValidationException e) {
+        } catch (ApplicationTypeSchemaValidationException e) {
             throw e;
         } catch (Exception e) {
-            throw new CustomAppValidationException("Failed to obtain list of files attached to the custom app", e);
+            throw new ApplicationTypeSchemaProcessingException("Failed to obtain list of files attached to the custom app", e);
         }
     }
 

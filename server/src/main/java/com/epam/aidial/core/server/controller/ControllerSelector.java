@@ -74,7 +74,7 @@ public class ControllerSelector {
 
     private static final Pattern USER_INFO = Pattern.compile("^/v1/user/info$");
 
-    private static final Pattern APP_SCHEMAS = Pattern.compile("^/v1/application_type_schemas(/schemas|/schema|/meta_schema)?$");
+    private static final Pattern APP_SCHEMAS = Pattern.compile("^/v1/application_type_schemas(/schemas|/schema|/meta_schema)?");
 
     static {
         // GET routes
@@ -173,7 +173,7 @@ public class ControllerSelector {
         });
         get(USER_INFO, (proxy, context, pathMatcher) -> new UserInfoController(context));
         get(APP_SCHEMAS, (proxy, context, pathMatcher) -> {
-            AppSchemaController controller = new AppSchemaController(context);
+            ApplicationTypeSchemaController controller = new ApplicationTypeSchemaController(context);
             String operation = pathMatcher.group(1);
             return switch (operation) {
                 case "/schemas" -> controller::handleListSchemas;

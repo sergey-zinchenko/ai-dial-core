@@ -15,7 +15,7 @@ import com.epam.aidial.core.server.data.SharedResource;
 import com.epam.aidial.core.server.data.SharedResources;
 import com.epam.aidial.core.server.data.SharedResourcesResponse;
 import com.epam.aidial.core.server.security.EncryptionService;
-import com.epam.aidial.core.server.util.CustomApplicationUtils;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.data.MetadataBase;
@@ -121,7 +121,7 @@ public class ShareService {
             ResourceDescriptor resource = getResourceFromLink(sharedResource.url());
             if (resource.getType() == ResourceTypes.APPLICATION) {
                 Application application = applicationService.getApplication(resource).getValue();
-                List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService, resourceService);
+                List<ResourceDescriptor> files = ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService, resourceService);
                 for (ResourceDescriptor file : files) {
                     if (!filesFromRequest.contains(file.getUrl())) {
                         newSharedResources.add(new SharedResource(file.getUrl(), sharedResource.permissions()));

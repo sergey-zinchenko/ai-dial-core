@@ -21,7 +21,7 @@ import java.util.Set;
 import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.getMetaschemaBuilder;
 
 @Slf4j
-public class CustomApplicationsConformToSchemasValidator implements ConstraintValidator<CustomApplicationsConformToSchemas, Config> {
+public class CustomApplicationsConformToTypeSchemasValidator implements ConstraintValidator<CustomApplicationsConformToTypeSchemas, Config> {
 
 
     private static final JsonMetaSchema DIAL_META_SCHEMA = getMetaschemaBuilder()

@@ -20,19 +20,19 @@ import java.util.List;
 import java.util.Map;
 
 @Slf4j
-public class AppSchemaController {
+public class ApplicationTypeSchemaController {
 
     private static final String FAILED_READ_SCHEMA_MESSAGE = "Failed to read schema from resources";
     private static final String ID_FIELD = "$id";
     private static final String ID_PARAM = "id";
-    private static final String EDITOR_URL_FIELD = "dial:custom-application-type-editor-url";
-    private static final String DISPLAY_NAME_FIELD = "dial:custom-application-type-display-name";
-    private static final String COMPLETION_ENDPOINT_FIELD = "dial:custom-application-type-completion-endpoint";
+    private static final String EDITOR_URL_FIELD = "dial:applicationTypeEditorUrl";
+    private static final String DISPLAY_NAME_FIELD = "dial:applicationTypeDisplayName";
+    private static final String COMPLETION_ENDPOINT_FIELD = "dial:applicationTypeCompletionEndpoint";
 
     private final ProxyContext context;
     private final Vertx vertx;
 
-    public AppSchemaController(ProxyContext context) {
+    public ApplicationTypeSchemaController(ProxyContext context) {
         this.context = context;
         this.vertx = context.getProxy().getVertx();
     }

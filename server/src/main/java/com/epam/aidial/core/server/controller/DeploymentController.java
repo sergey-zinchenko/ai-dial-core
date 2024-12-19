@@ -14,7 +14,7 @@ import com.epam.aidial.core.server.data.ListData;
 import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
-import com.epam.aidial.core.server.util.CustomApplicationUtils;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
@@ -81,10 +81,10 @@ public class DeploymentController {
                             }
                             Application modifiedApp = application;
                             if (filterCustomProperties) {
-                                modifiedApp = CustomApplicationUtils.filterCustomClientProperties(context.getConfig(), application);
+                                modifiedApp = ApplicationTypeSchemaUtils.filterCustomClientProperties(context.getConfig(), application);
                             }
                             if (modifyEndpoint) {
-                                modifiedApp = CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), modifiedApp);
+                                modifiedApp = ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(context.getConfig(), modifiedApp);
                             }
                             return modifiedApp;
                         });
@@ -120,10 +120,10 @@ public class DeploymentController {
 
             if (app.getCustomAppSchemaId() != null) {
                 if (filterCustomProperties) {
-                    app = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
+                    app = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
                 }
                 if (modifyEndpoint) {
-                    app = CustomApplicationUtils.modifyEndpointForCustomApplication(context.getConfig(), app);
+                    app = ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(context.getConfig(), app);
                 }
             }
 

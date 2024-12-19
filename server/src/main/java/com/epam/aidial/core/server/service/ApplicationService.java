@@ -9,8 +9,8 @@ import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.data.SharedResourcesResponse;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.BucketBuilder;
-import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.blobstore.BlobStorageUtil;
@@ -134,7 +134,7 @@ public class ApplicationService {
 
             if (meta instanceof ResourceItemMetadata) {
                 Application application = getApplication(resource).getValue();
-                application = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
+                application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
                 list.add(application);
             } else {
                 list.addAll(getApplications(resource, context));
@@ -200,7 +200,7 @@ public class ApplicationService {
                     try {
                         ResourceDescriptor item = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
                         Application application = getApplication(item).getValue();
-                        application = CustomApplicationUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
+                        application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
                         applications.add(application);
                     } catch (ResourceNotFoundException ignore) {
                         // deleted while fetching

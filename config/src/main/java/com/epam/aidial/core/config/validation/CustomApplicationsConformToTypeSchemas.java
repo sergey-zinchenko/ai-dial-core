@@ -11,11 +11,11 @@ import java.lang.annotation.Target;
 import static java.lang.annotation.ElementType.TYPE;
 
 @Documented
-@Constraint(validatedBy = { CustomApplicationsConformToSchemasValidator.class})
+@Constraint(validatedBy = { CustomApplicationsConformToTypeSchemasValidator.class})
 @Target({ TYPE })
 @Retention(RetentionPolicy.RUNTIME)
 @ReportAsSingleViolation
-public @interface CustomApplicationsConformToSchemas {
+public @interface CustomApplicationsConformToTypeSchemas {
     String message() default "Custom applications should comply with their schemas";
     Class<?>[] groups() default {};
     Class<? extends jakarta.validation.Payload>[] payload() default {};

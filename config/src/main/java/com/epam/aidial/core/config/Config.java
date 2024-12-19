@@ -3,9 +3,8 @@ package com.epam.aidial.core.config;
 import com.epam.aidial.core.config.databind.JsonArrayToSchemaMapDeserializer;
 import com.epam.aidial.core.config.databind.MapToJsonArraySerializer;
 import com.epam.aidial.core.config.validation.ConformToMetaSchema;
-import com.epam.aidial.core.config.validation.CustomApplicationsConformToSchemas;
+import com.epam.aidial.core.config.validation.CustomApplicationsConformToTypeSchemas;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
@@ -18,7 +17,7 @@ import java.util.Set;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-@CustomApplicationsConformToSchemas(message = "All custom schema-rich applications should conform to their schemas")
+@CustomApplicationsConformToTypeSchemas(message = "All custom schema-rich applications should conform to their schemas")
 public class Config {
     public static final String ASSISTANT = "assistant";
 

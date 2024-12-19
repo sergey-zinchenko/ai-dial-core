@@ -14,10 +14,11 @@ import com.epam.aidial.core.server.service.InvitationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.service.ShareService;
-import com.epam.aidial.core.server.util.CustomApplicationUtils;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaProcessingException;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
-import com.epam.aidial.core.server.validation.CustomAppValidationException;
+import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.epam.aidial.core.storage.data.MetadataBase;
 import com.epam.aidial.core.storage.data.ResourceItemMetadata;
 import com.epam.aidial.core.storage.http.HttpException;
@@ -177,7 +178,7 @@ public class ResourceController extends AccessControlBaseController {
     private void validateCustomApplication(Application application) {
         try {
             Config config = context.getConfig();
-            List<ResourceDescriptor> files = CustomApplicationUtils.getFiles(config, application, encryptionService,
+            List<ResourceDescriptor> files = ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService,
                     resourceService);
             files.stream().filter(resource -> !(accessService.hasReadAccess(resource, context)))
                     .findAny().ifPresent(file -> {
@@ -185,7 +186,9 @@ public class ResourceController extends AccessControlBaseController {
                     });
         } catch (ValidationException | IllegalArgumentException e) {
             throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
-        } catch (CustomAppValidationException e) {
+        } catch (ApplicationTypeSchemaValidationException e) {
+            throw new HttpException(BAD_REQUEST, "Custom application processing exception", e);
+        } catch (ApplicationTypeSchemaProcessingException e) {
             throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application validation failed", e);
         }
     }

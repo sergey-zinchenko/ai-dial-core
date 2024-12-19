@@ -12,8 +12,8 @@ import com.epam.aidial.core.server.data.ResourceUrl;
 import com.epam.aidial.core.server.data.Rule;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.BucketBuilder;
-import com.epam.aidial.core.server.util.CustomApplicationUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.data.MetadataBase;
@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
-import static com.epam.aidial.core.server.util.CustomApplicationUtils.replaceCustomAppFiles;
+import static com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils.replaceCustomAppFiles;
 
 @RequiredArgsConstructor
 public class PublicationService {
@@ -405,7 +405,7 @@ public class PublicationService {
                         return Stream.empty();
                     }
                     Publication.ResourceAction action = resource.getAction();
-                    return CustomApplicationUtils.getFiles(context.getConfig(), application, encryption, resourceService)
+                    return ApplicationTypeSchemaUtils.getFiles(context.getConfig(), application, encryption, resourceService)
                             .stream()
                             .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl())
                                     && !sourceDescriptor.isPublic())
