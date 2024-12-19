@@ -176,12 +176,10 @@ public class ResourceController extends AccessControlBaseController {
                     .findAny().ifPresent(file -> {
                         throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
                     });
-        } catch (ValidationException | IllegalArgumentException e) {
-            throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
-        } catch (ApplicationTypeSchemaValidationException e) {
-            throw new HttpException(BAD_REQUEST, "Custom application processing exception", e);
+        } catch (ValidationException | IllegalArgumentException | ApplicationTypeSchemaValidationException e) {
+            throw new HttpException(BAD_REQUEST, " Custom application validation failed", e);
         } catch (ApplicationTypeSchemaProcessingException e) {
-            throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application validation failed", e);
+            throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application processing exception", e);
         }
     }
 
