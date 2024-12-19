@@ -23,7 +23,7 @@ import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.entity.mime.HttpMultipartMode;
 import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
@@ -122,7 +122,9 @@ public class ResourceBaseTest {
                     .build();
             redis.start();
 
-            client = HttpClients.createDefault();
+            // create HTTP client with disabled retries
+            // e.g. don't retry if response contains the header `retry-after`
+            client = HttpClientBuilder.create().disableAutomaticRetries().build();
 
             String overrides = """
                     {
@@ -169,7 +171,7 @@ public class ResourceBaseTest {
                         }
 
                         if (authorization.equals("user") || authorization.equals("admin")) {
-                            return Future.succeededFuture(new ExtractedClaims(authorization, List.of(authorization), authorization, Map.of("title", List.of("Manager"))));
+                            return Future.succeededFuture(new ExtractedClaims(authorization, List.of(authorization), authorization, Map.of("title", List.of("Manager")), null));
                         }
 
                         return Future.failedFuture("Not authorized");

@@ -1,119 +1,140 @@
 package com.epam.aidial.core.server.upstream;
 
-import com.epam.aidial.core.config.Addon;
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Assistant;
-import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.config.Model;
 import com.epam.aidial.core.config.Route;
 import com.epam.aidial.core.config.Upstream;
+import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
- * Provides UpstreamRoute for the given UpstreamProvider.
- * This class caches load balancers for deployments and routes from config,
- * for other deployments (for example: custom applications) each request will build a new load balancer.
+ * This class caches load balancers for deployments and routes.
  * If upstreams configuration for any deployment changed - load balancer state will be invalidated.
  */
 @Slf4j
 public class UpstreamRouteProvider {
 
     /**
-     * Indicated max retry attempts (max upstreams from load balancer) to route a single user request
+     * Maximum idle period while balancers will stay in the local cache.
      */
-    private static final int MAX_RETRY_COUNT = 5;
+    private static final long IDLE_PERIOD_IN_MS = TimeUnit.HOURS.toMillis(1);
+
 
     /**
-     * Cached load balancers for config deployments
+     * Cached load balancers
      */
-    private volatile Map<String, TieredBalancer> balancers = new HashMap<>();
+    private final ConcurrentHashMap<String, BalancerWrapper> balancers = new ConcurrentHashMap<>();
 
-    /**
-     * Returns UpstreamRoute for the given provider
-     *
-     * @param provider upstream provider for any deployment with actual upstreams
-     * @return upstream route
-     */
-    public UpstreamRoute get(UpstreamProvider provider) {
-        String deploymentName = provider.getName();
-        List<Upstream> upstreams = provider.getUpstreams();
+    private final Supplier<Random> generatorFactory;
 
-        TieredBalancer balancer = balancers.get(deploymentName);
-        if (balancer == null) {
-            // if no state found for upstream, it's probably custom application
-            balancer = new TieredBalancer(deploymentName, upstreams);
+    public UpstreamRouteProvider(Vertx vertx, Supplier<Random> generatorFactory) {
+        this.generatorFactory = generatorFactory;
+        vertx.setPeriodic(0, TimeUnit.MINUTES.toMillis(1), event -> evictExpiredBalancers());
+    }
+
+    public UpstreamRoute get(Deployment deployment) {
+        String key = getKey(deployment);
+        List<Upstream> upstreams = getUpstreams(deployment);
+        return get(key, upstreams, deployment.getMaxRetryAttempts());
+    }
+
+    public UpstreamRoute get(Route route) {
+        String key = getKey(route);
+        return get(key, route.getUpstreams(), route.getMaxRetryAttempts());
+    }
+
+    private UpstreamRoute get(String key, List<Upstream> upstreams, int maxRetryAttempts) {
+        BalancerWrapper wrapper = balancers.compute(key, (k, cur) -> {
+            BalancerWrapper result;
+            if (cur != null && isUpstreamsTheSame(cur.upstreams, upstreams)
+                    && maxRetryAttempts == cur.maxRetryAttempts) {
+                result = cur;
+            } else {
+                TieredBalancer balancer = new TieredBalancer(key, upstreams, generatorFactory.get());
+                result = new BalancerWrapper(balancer, maxRetryAttempts, upstreams);
+            }
+            result.lastAccessTime = System.currentTimeMillis();
+            return result;
+        });
+        int result = Math.min(maxRetryAttempts, upstreams.size());
+        if (result <= 0) {
+            throw new IllegalArgumentException("max retry attempts must be positive integer");
+        }
+        return new UpstreamRoute(wrapper.balancer, result);
+    }
+
+    private List<Upstream> getUpstreams(Deployment deployment) {
+        if (deployment instanceof Model model && !model.getUpstreams().isEmpty()) {
+            return model.getUpstreams();
         }
 
-        return new UpstreamRoute(balancer, MAX_RETRY_COUNT);
+        Upstream upstream = new Upstream();
+        upstream.setEndpoint(deployment.getEndpoint());
+        upstream.setKey("whatever");
+        return List.of(upstream);
     }
 
-    public synchronized void onUpdate(Config config) {
-        log.debug("Updating load balancers state");
-        Map<String, TieredBalancer> oldState = balancers;
-        Map<String, TieredBalancer> newState = new HashMap<>();
-
-        Map<String, Model> models = config.getModels();
-        updateDeployments(newState, oldState, models.values());
-
-        Map<String, Application> applications = config.getApplications();
-        updateDeployments(newState, oldState, applications.values());
-
-        Map<String, Addon> addons = config.getAddons();
-        updateDeployments(newState, oldState, addons.values());
-
-        Map<String, Assistant> assistants = config.getAssistant().getAssistants();
-        updateDeployments(newState, oldState, assistants.values());
-
-        LinkedHashMap<String, Route> routes = config.getRoutes();
-        updateRoutes(newState, oldState, routes.values());
-
-        balancers = newState;
+    private String getKey(Route route) {
+        Objects.requireNonNull(route);
+        return "route:" + route.getName();
     }
 
-    private static void updateRoutes(Map<String, TieredBalancer> newState, Map<String, TieredBalancer> oldState, Collection<Route> routes) {
-        for (Route route : routes) {
-            String name = route.getName();
-
-            RouteEndpointProvider endpointProvider = new RouteEndpointProvider(route);
-            TieredBalancer previous = oldState.get(name);
-            updateDeployment(endpointProvider, previous, newState);
-        }
-    }
-
-    private static void updateDeployments(Map<String, TieredBalancer> newState, Map<String, TieredBalancer> oldState,
-                                          Collection<? extends Deployment> deployments) {
-        for (Deployment deployment : deployments) {
-            String name = deployment.getName();
-
-            DeploymentUpstreamProvider endpointProvider = new DeploymentUpstreamProvider(deployment);
-            TieredBalancer previous = oldState.get(name);
-            updateDeployment(endpointProvider, previous, newState);
-        }
-    }
-
-    private static void updateDeployment(UpstreamProvider upstream, TieredBalancer previous, Map<String, TieredBalancer> newState) {
-        String name = upstream.getName();
-        TieredBalancer balancer;
-        if (previous != null && isUpstreamsTheSame(upstream, previous)) {
-            balancer = previous;
+    private String getKey(Deployment deployment) {
+        Objects.requireNonNull(deployment);
+        String prefix;
+        if (deployment instanceof Model) {
+            prefix = "model";
+        } else if (deployment instanceof Application) {
+            prefix = "application";
+        } else if (deployment instanceof Assistant) {
+            prefix = "assistant";
         } else {
-            balancer = new TieredBalancer(name, upstream.getUpstreams());
+            throw new IllegalArgumentException("Unsupported deployment type: " + deployment.getClass().getName());
         }
-        TieredBalancer previousBalancer = newState.putIfAbsent(name, balancer);
-        if (previousBalancer != null) {
-            log.warn("Duplicate deployment name: {}", name);
+        return prefix + ":" + deployment.getName();
+    }
+
+    private void evictExpiredBalancers() {
+        long currentTime = System.currentTimeMillis();
+        for (String key : balancers.keySet()) {
+            balancers.compute(key, (k, wrapper) -> {
+                if (wrapper != null && currentTime - wrapper.lastAccessTime > IDLE_PERIOD_IN_MS) {
+                    return null;
+                }
+                return wrapper;
+            });
         }
     }
 
-    private static boolean isUpstreamsTheSame(UpstreamProvider upstreamProvider, TieredBalancer balancer) {
-        return new HashSet<>(upstreamProvider.getUpstreams()).equals(new HashSet<>(balancer.getOriginalUpstreams()));
+    private static boolean isUpstreamsTheSame(List<Upstream> a, List<Upstream> b) {
+        return new HashSet<>(a).equals(new HashSet<>(b));
+    }
+
+    private static class BalancerWrapper {
+        final TieredBalancer balancer;
+        long lastAccessTime;
+
+        /**
+         * Note. The value is taken from {@link Deployment#getMaxRetryAttempts()} or {@link Route#getMaxRetryAttempts()}
+         */
+        final int maxRetryAttempts;
+
+        final List<Upstream> upstreams;
+
+        public BalancerWrapper(TieredBalancer balancer, int maxRetryAttempts, List<Upstream> upstreams) {
+            this.balancer = balancer;
+            this.maxRetryAttempts = maxRetryAttempts;
+            this.upstreams = upstreams;
+        }
     }
 }

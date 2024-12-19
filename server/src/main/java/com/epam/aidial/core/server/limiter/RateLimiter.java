@@ -34,7 +34,7 @@ public class RateLimiter {
 
     private final ResourceService resourceService;
 
-    public Future<Void> increase(ProxyContext context) {
+    public Future<Void> increase(ProxyContext context, RoleBasedEntity roleBasedEntity) {
         try {
             // skip checking limits if redis is not available
             if (resourceService == null) {
@@ -47,7 +47,7 @@ public class RateLimiter {
                 return Future.succeededFuture();
             }
 
-            String tokensPath = getPathToTokens(context.getDeployment().getName());
+            String tokensPath = getPathToTokens(roleBasedEntity.getName());
             ResourceDescriptor resourceDescription = getResourceDescription(context, tokensPath);
             return vertx.executeBlocking(() -> updateTokenLimit(resourceDescription, usage.getTotalTokens()), false);
         } catch (Throwable e) {
@@ -70,7 +70,7 @@ public class RateLimiter {
                 } else {
                     log.warn("Limit must be positive for {}", name);
                 }
-                return Future.succeededFuture(new RateLimitResult(HttpStatus.FORBIDDEN, "Access denied"));
+                return Future.succeededFuture(new RateLimitResult(HttpStatus.FORBIDDEN, "Access denied", -1));
             }
 
             return vertx.executeBlocking(() -> checkLimit(context, limit, roleBasedEntity), false);
@@ -140,6 +140,14 @@ public class RateLimiter {
         ItemLimitStats dayRequestStats = new ItemLimitStats();
         dayRequestStats.setTotal(limit.getRequestDay());
         limitStats.setDayRequestStats(dayRequestStats);
+
+        ItemLimitStats weekTokenStats = new ItemLimitStats();
+        weekTokenStats.setTotal(limit.getWeek());
+        limitStats.setWeekTokenStats(weekTokenStats);
+
+        ItemLimitStats monthTokenStats = new ItemLimitStats();
+        monthTokenStats.setTotal(limit.getMonth());
+        limitStats.setMonthTokenStats(monthTokenStats);
 
         return limitStats;
     }
@@ -230,11 +238,15 @@ public class RateLimiter {
                     limit.setRequestHour(candidate.getRequestHour());
                     limit.setRequestDay(candidate.getRequestDay());
                     limit.setDay(candidate.getDay());
+                    limit.setWeek(candidate.getWeek());
+                    limit.setMonth(candidate.getMonth());
                 } else {
                     limit.setMinute(Math.max(candidate.getMinute(), limit.getMinute()));
                     limit.setDay(Math.max(candidate.getDay(), limit.getDay()));
                     limit.setRequestDay(Math.max(candidate.getRequestDay(), limit.getRequestDay()));
                     limit.setRequestHour(Math.max(candidate.getRequestHour(), limit.getRequestHour()));
+                    limit.setWeek(Math.max(candidate.getWeek(), limit.getWeek()));
+                    limit.setMonth(Math.max(candidate.getMonth(), limit.getMonth()));
                 }
             }
         }

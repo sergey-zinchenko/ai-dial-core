@@ -24,8 +24,6 @@ import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.token.TokenUsage;
 import com.epam.aidial.core.server.token.TokenUsageParser;
-import com.epam.aidial.core.server.upstream.DeploymentUpstreamProvider;
-import com.epam.aidial.core.server.upstream.UpstreamProvider;
 import com.epam.aidial.core.server.upstream.UpstreamRoute;
 import com.epam.aidial.core.server.util.ModelCostCalculator;
 import com.epam.aidial.core.server.util.ProxyUtil;
@@ -52,6 +50,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -124,7 +123,7 @@ public class DeploymentPostController {
                             context.setInterceptors(context.getDeployment().getInterceptors());
                             future = handleInterceptor(0);
                         } else {
-                            future = handleRateLimitSuccess(deploymentId);
+                            future = handleRateLimitSuccess();
                         }
                     } else {
                         handleRateLimitHit(deploymentId, rateLimitResult);
@@ -163,7 +162,7 @@ public class DeploymentPostController {
 
     private void handleRequestError(String deploymentId, Throwable error) {
         if (error instanceof PermissionDeniedException) {
-            log.error("Forbidden deployment {}. Key: {}. User sub: {}", deploymentId, context.getProject(), context.getUserSub());
+            log.error("Forbidden deployment {}. Project: {}. User sub: {}", deploymentId, context.getProject(), context.getUserSub());
             respond(HttpStatus.FORBIDDEN, error.getMessage());
         } else if (error instanceof ResourceNotFoundException) {
             log.error("Deployment not found {}", deploymentId, error);
@@ -177,24 +176,18 @@ public class DeploymentPostController {
         }
     }
 
-    private Future<?> handleRateLimitSuccess(String deploymentId) {
-        log.info("Received request from client. Trace: {}. Span: {}. Key: {}. Deployment: {}. Headers: {}",
+    private Future<?> handleRateLimitSuccess() {
+        log.info("Received request from client. Trace: {}. Span: {}. Project: {}. Deployment: {}. Headers: {}",
                 context.getTraceId(), context.getSpanId(),
                 context.getProject(), context.getDeployment().getName(),
                 context.getRequest().headers().size());
 
-        UpstreamProvider endpointProvider = new DeploymentUpstreamProvider(context.getDeployment());
-        UpstreamRoute endpointRoute = proxy.getUpstreamRouteProvider().get(endpointProvider);
-        context.setUpstreamRoute(endpointRoute);
-
-        if (!endpointRoute.available()) {
-            log.error("No route. Trace: {}. Span: {}. Key: {}. Deployment: {}. User sub: {}",
-                    context.getTraceId(), context.getSpanId(),
-                    context.getProject(), deploymentId, context.getUserSub());
-
-            respond(HttpStatus.BAD_GATEWAY, "No route");
+        Deployment deployment = context.getDeployment();
+        UpstreamRoute upstreamRoute = proxy.getUpstreamRouteProvider().get(deployment);
+        if (!canRetry(upstreamRoute)) {
             return Future.succeededFuture();
         }
+        context.setUpstreamRoute(upstreamRoute);
 
         setupProxyApiKeyData(new ApiKeyData());
         return proxy.getTokenStatsTracker().startSpan(context).map(ignore -> {
@@ -218,13 +211,24 @@ public class DeploymentPostController {
         ErrorData rateLimitError = new ErrorData();
         rateLimitError.getError().setCode(String.valueOf(result.status().getCode()));
         rateLimitError.getError().setMessage(result.errorMessage());
-        log.error("Rate limit error {}. Key: {}. User sub: {}. Deployment: {}. Trace: {}. Span: {}", result.errorMessage(),
+
+        log.error("Rate limit error {}. Project: {}. User sub: {}. Deployment: {}. Trace: {}. Span: {}", result.errorMessage(),
                 context.getProject(), context.getUserSub(), deploymentId, context.getTraceId(), context.getSpanId());
-        respond(result.status(), rateLimitError);
+
+        String errorMessage = ProxyUtil.convertToString(rateLimitError);
+        HttpException httpException;
+        if (result.replyAfterSeconds() >= 0) {
+            Map<String, String> headers = Map.of(HttpHeaders.RETRY_AFTER.toString(), Long.toString(result.replyAfterSeconds()));
+            httpException = new HttpException(result.status(), errorMessage, headers);
+        } else {
+            httpException = new HttpException(result.status(), errorMessage);
+        }
+
+        respond(httpException);
     }
 
     private void handleError(Throwable error) {
-        log.error("Can't handle request. Key: {}. User sub: {}. Trace: {}. Span: {}. Error: {}",
+        log.error("Can't handle request. Project: {}. User sub: {}. Trace: {}. Span: {}. Error: {}",
                 context.getProject(), context.getUserSub(), context.getTraceId(), context.getSpanId(), error.getMessage());
         respond(HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -233,15 +237,6 @@ public class DeploymentPostController {
     private void sendRequest() {
         UpstreamRoute route = context.getUpstreamRoute();
         HttpServerRequest request = context.getRequest();
-
-        if (!route.available()) {
-            log.error("No route. Trace: {}. Span: {}. Key: {}. Deployment: {}. User sub: {}",
-                    context.getTraceId(), context.getSpanId(),
-                    context.getProject(), context.getDeployment().getName(), context.getUserSub());
-
-            respond(HttpStatus.BAD_GATEWAY, "No route");
-            return;
-        }
 
         Upstream upstream = route.get();
         Objects.requireNonNull(upstream);
@@ -260,7 +255,7 @@ public class DeploymentPostController {
     @VisibleForTesting
     void handleRequestBody(Buffer requestBody) {
         Deployment deployment = context.getDeployment();
-        log.info("Received body from client. Trace: {}. Span: {}. Key: {}. Deployment: {}. Length: {}",
+        log.info("Received body from client. Trace: {}. Span: {}. Project: {}. Deployment: {}. Length: {}",
                 context.getTraceId(), context.getSpanId(),
                 context.getProject(), deployment.getName(), requestBody.length());
 
@@ -291,7 +286,7 @@ public class DeploymentPostController {
      */
     @VisibleForTesting
     void handleProxyRequest(HttpClientRequest proxyRequest) {
-        log.info("Connected to origin. Trace: {}. Span: {}. Key: {}. Deployment: {}. Address: {}",
+        log.info("Connected to origin. Trace: {}. Span: {}. Project: {}. Deployment: {}. Address: {}",
                 context.getTraceId(), context.getSpanId(),
                 context.getProject(), context.getDeployment().getName(),
                 proxyRequest.connection().remoteAddress());
@@ -333,7 +328,7 @@ public class DeploymentPostController {
     private void handleProxyResponse(HttpClientResponse proxyResponse) {
         UpstreamRoute upstreamRoute = context.getUpstreamRoute();
         Upstream currentUpstream = upstreamRoute.get();
-        log.info("Received header from origin. Trace: {}. Span: {}. Key: {}. Deployment: {}. Endpoint: {}. Upstream: {}. Status: {}. Headers: {}",
+        log.info("Received header from origin. Trace: {}. Span: {}. Project: {}. Deployment: {}. Endpoint: {}. Upstream: {}. Status: {}. Headers: {}",
                 context.getTraceId(), context.getSpanId(),
                 context.getProject(), context.getDeployment().getName(),
                 context.getDeployment().getEndpoint(), currentUpstream == null ? "N/A" : currentUpstream.getEndpoint(),
@@ -343,8 +338,9 @@ public class DeploymentPostController {
         if (isRetriableError(responseStatusCode)) {
             upstreamRoute.fail(proxyResponse);
             // get next upstream
-            upstreamRoute.next();
-            sendRequest(); // try next
+            if (canRetry(upstreamRoute)) {
+                sendRequest(); // try next
+            }
             return;
         }
 
@@ -369,7 +365,7 @@ public class DeploymentPostController {
         response.setStatusCode(proxyResponse.statusCode());
 
         ProxyUtil.copyHeaders(proxyResponse.headers(), response.headers());
-        response.putHeader(Proxy.HEADER_UPSTREAM_ATTEMPTS, Integer.toString(upstreamRoute.used()));
+        response.putHeader(Proxy.HEADER_UPSTREAM_ATTEMPTS, Integer.toString(upstreamRoute.getAttemptCount()));
 
         responseStream.pipe()
                 .endOnFailure(false)
@@ -422,7 +418,7 @@ public class DeploymentPostController {
                 if (tokenUsage == null) {
                     Pricing pricing = model.getPricing();
                     if (pricing == null || "token".equals(pricing.getUnit())) {
-                        log.warn("Can't find token usage. Trace: {}. Span: {}. Key: {}. Deployment: {}. Endpoint: {}. Upstream: {}. Status: {}. Length: {}",
+                        log.warn("Can't find token usage. Trace: {}. Span: {}. Project: {}. Deployment: {}. Endpoint: {}. Upstream: {}. Status: {}. Length: {}",
                                 context.getTraceId(), context.getSpanId(),
                                 context.getProject(), context.getDeployment().getName(),
                                 context.getDeployment().getEndpoint(),
@@ -433,7 +429,7 @@ public class DeploymentPostController {
                     tokenUsage = new TokenUsage();
                 }
                 context.setTokenUsage(tokenUsage);
-                proxy.getRateLimiter().increase(context).onFailure(error -> log.warn("Failed to increase limit. Trace: {}. Span: {}",
+                proxy.getRateLimiter().increase(context, context.getDeployment()).onFailure(error -> log.warn("Failed to increase limit. Trace: {}. Span: {}",
                         context.getTraceId(), context.getSpanId(), error));
                 try {
                     BigDecimal cost = ModelCostCalculator.calculate(context);
@@ -472,7 +468,7 @@ public class DeploymentPostController {
 
         proxy.getLogStore().save(context);
 
-        log.info("Sent response to client. Trace: {}. Span: {}. Key: {}. Deployment: {}. Endpoint: {}. Upstream: {}. Status: {}. Length: {}."
+        log.info("Sent response to client. Trace: {}. Span: {}. Project: {}. Deployment: {}. Endpoint: {}. Upstream: {}. Status: {}. Length: {}."
                         + " Timing: {} (body={}, connect={}, header={}, body={}). Tokens: {}",
                 context.getTraceId(), context.getSpanId(),
                 context.getProject(), context.getDeployment().getName(),
@@ -504,7 +500,7 @@ public class DeploymentPostController {
      * Called when proxy failed to connect to the origin.
      */
     private void handleProxyConnectionError(Throwable error) {
-        log.warn("Can't connect to origin. Trace: {}. Span: {}. Key: {}. Deployment: {}. Address: {}. Error: {}",
+        log.warn("Can't connect to origin. Trace: {}. Span: {}. Project: {}. Deployment: {}. Address: {}. Error: {}",
                 context.getTraceId(), context.getSpanId(),
                 context.getProject(), context.getDeployment().getName(),
                 buildUri(context), error.getMessage());
@@ -517,7 +513,7 @@ public class DeploymentPostController {
      */
     private void handleProxyResponseError(Throwable error) {
         UpstreamRoute upstreamRoute = context.getUpstreamRoute();
-        log.warn("Proxy failed to receive response header from origin. Trace: {}. Span: {}. Key: {}. Deployment: {}. Address: {}. Error:",
+        log.warn("Proxy failed to receive response header from origin. Trace: {}. Span: {}. Project: {}. Deployment: {}. Address: {}. Error:",
                 context.getTraceId(), context.getSpanId(),
                 context.getProject(), context.getDeployment().getName(),
                 context.getProxyRequest().connection().remoteAddress(),
@@ -525,8 +521,9 @@ public class DeploymentPostController {
 
         // for 5xx errors we use exponential backoff strategy, so passing retryAfterSeconds parameter makes no sense
         upstreamRoute.fail(HttpStatus.BAD_GATEWAY);
-        upstreamRoute.next();
-        sendRequest();
+        if (canRetry(upstreamRoute)) {
+            sendRequest(); // try next
+        }
     }
 
     /**
@@ -570,9 +567,27 @@ public class DeploymentPostController {
         return endpoint + (query == null ? "" : "?" + query);
     }
 
+    private boolean canRetry(UpstreamRoute route) {
+        try {
+            route.next();
+        } catch (HttpException e) {
+            log.error("No route. Trace: {}. Span: {}. Project: {}. Deployment: {}. User sub: {}",
+                    context.getTraceId(), context.getSpanId(),
+                    context.getProject(), context.getDeployment().getName(), context.getUserSub());
+            respond(e);
+            return false;
+        }
+        return true;
+    }
+
     private Future<?> respond(HttpStatus status, String errorMessage) {
         finalizeRequest();
         return context.respond(status, errorMessage);
+    }
+
+    private void respond(HttpException exception) {
+        finalizeRequest();
+        context.respond(exception);
     }
 
     private void respond(HttpStatus status) {

@@ -196,7 +196,7 @@ public class RateLimiterTest {
         tokenUsage.setTotalTokens(90);
         proxyContext.setTokenUsage(tokenUsage);
 
-        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext);
+        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -206,7 +206,7 @@ public class RateLimiterTest {
         assertNotNull(checkLimitFuture.result());
         assertEquals(HttpStatus.OK, checkLimitFuture.result().status());
 
-        increaseLimitFuture = rateLimiter.increase(proxyContext);
+        increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -231,6 +231,8 @@ public class RateLimiterTest {
         limit.setMinute(100);
         limit.setRequestDay(10);
         limit.setRequestHour(2);
+        limit.setWeek(1000000);
+        limit.setMonth(10000000);
         role.setLimits(Map.of("model", limit));
         config.setRoles(Map.of("role", role));
         ApiKeyData apiKeyData = new ApiKeyData();
@@ -254,7 +256,7 @@ public class RateLimiterTest {
         assertNotNull(resultFuture.result());
         assertEquals(HttpStatus.OK, resultFuture.result().status());
 
-        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext);
+        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -271,8 +273,12 @@ public class RateLimiterTest {
         assertEquals(1, limitStats.getDayRequestStats().getUsed());
         assertEquals(2, limitStats.getHourRequestStats().getTotal());
         assertEquals(1, limitStats.getHourRequestStats().getUsed());
+        assertEquals(1000000, limitStats.getWeekTokenStats().getTotal());
+        assertEquals(90, limitStats.getWeekTokenStats().getUsed());
+        assertEquals(10000000, limitStats.getMonthTokenStats().getTotal());
+        assertEquals(90, limitStats.getMonthTokenStats().getUsed());
 
-        increaseLimitFuture = rateLimiter.increase(proxyContext);
+        increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -285,6 +291,10 @@ public class RateLimiterTest {
         assertEquals(180, limitStats.getDayTokenStats().getUsed());
         assertEquals(100, limitStats.getMinuteTokenStats().getTotal());
         assertEquals(180, limitStats.getMinuteTokenStats().getUsed());
+        assertEquals(1000000, limitStats.getWeekTokenStats().getTotal());
+        assertEquals(180, limitStats.getWeekTokenStats().getUsed());
+        assertEquals(10000000, limitStats.getMonthTokenStats().getTotal());
+        assertEquals(180, limitStats.getMonthTokenStats().getUsed());
 
     }
 
@@ -309,7 +319,7 @@ public class RateLimiterTest {
 
         ApiKeyData apiKeyData = new ApiKeyData();
         apiKeyData.setPerRequestKey("per-request-key");
-        apiKeyData.setExtractedClaims(new ExtractedClaims("sub", List.of("role1", "role2"), "user-hash", Map.of()));
+        apiKeyData.setExtractedClaims(new ExtractedClaims("sub", List.of("role1", "role2"), "user-hash", Map.of(), null));
         ProxyContext proxyContext = new ProxyContext(null, config, request, apiKeyData,
                 null, "trace-id", "span-id");
         Model model = new Model();
@@ -325,7 +335,7 @@ public class RateLimiterTest {
         tokenUsage.setTotalTokens(150);
         proxyContext.setTokenUsage(tokenUsage);
 
-        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext);
+        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -335,7 +345,7 @@ public class RateLimiterTest {
         assertNotNull(checkLimitFuture.result());
         assertEquals(HttpStatus.OK, checkLimitFuture.result().status());
 
-        increaseLimitFuture = rateLimiter.increase(proxyContext);
+        increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -353,7 +363,7 @@ public class RateLimiterTest {
 
         ApiKeyData apiKeyData = new ApiKeyData();
         ProxyContext proxyContext = new ProxyContext(null, config, request, apiKeyData,
-                new ExtractedClaims("sub", List.of("role1"), "user-hash", Map.of()), "trace-id", "span-id");
+                new ExtractedClaims("sub", List.of("role1"), "user-hash", Map.of(), null), "trace-id", "span-id");
         Model model = new Model();
         model.setName("model");
         proxyContext.setDeployment(model);
@@ -367,7 +377,7 @@ public class RateLimiterTest {
         tokenUsage.setTotalTokens(90);
         proxyContext.setTokenUsage(tokenUsage);
 
-        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext);
+        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -377,7 +387,7 @@ public class RateLimiterTest {
         assertNotNull(checkLimitFuture.result());
         assertEquals(HttpStatus.OK, checkLimitFuture.result().status());
 
-        increaseLimitFuture = rateLimiter.increase(proxyContext);
+        increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -409,7 +419,7 @@ public class RateLimiterTest {
 
         ApiKeyData apiKeyData = new ApiKeyData();
         ProxyContext proxyContext = new ProxyContext(null, config, request, apiKeyData,
-                new ExtractedClaims("sub", List.of("role1", "role2"), "user-hash", Map.of()), "trace-id", "span-id");
+                new ExtractedClaims("sub", List.of("role1", "role2"), "user-hash", Map.of(), null), "trace-id", "span-id");
         Model model = new Model();
         model.setName("model");
         proxyContext.setDeployment(model);
@@ -423,7 +433,7 @@ public class RateLimiterTest {
         tokenUsage.setTotalTokens(150);
         proxyContext.setTokenUsage(tokenUsage);
 
-        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext);
+        Future<Void> increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 
@@ -433,7 +443,7 @@ public class RateLimiterTest {
         assertNotNull(checkLimitFuture.result());
         assertEquals(HttpStatus.OK, checkLimitFuture.result().status());
 
-        increaseLimitFuture = rateLimiter.increase(proxyContext);
+        increaseLimitFuture = rateLimiter.increase(proxyContext, model);
         assertNotNull(increaseLimitFuture);
         assertNull(increaseLimitFuture.cause());
 

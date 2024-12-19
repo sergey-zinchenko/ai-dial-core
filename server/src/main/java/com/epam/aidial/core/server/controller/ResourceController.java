@@ -10,7 +10,6 @@ import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.service.ApplicationService;
-import com.epam.aidial.core.server.service.InvitationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.service.ShareService;
@@ -24,7 +23,6 @@ import com.epam.aidial.core.storage.data.ResourceItemMetadata;
 import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
-import com.epam.aidial.core.storage.service.LockService;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import io.vertx.core.Future;
@@ -48,10 +46,7 @@ public class ResourceController extends AccessControlBaseController {
     private final Vertx vertx;
     private final EncryptionService encryptionService;
     private final ResourceService resourceService;
-    private final ShareService shareService;
-    private final LockService lockService;
     private final ApplicationService applicationService;
-    private final InvitationService invitationService;
     private final boolean metadata;
     private final AccessService accessService;
 
@@ -61,10 +56,7 @@ public class ResourceController extends AccessControlBaseController {
         this.vertx = proxy.getVertx();
         this.encryptionService = proxy.getEncryptionService();
         this.applicationService = proxy.getApplicationService();
-        this.shareService = proxy.getShareService();
         this.accessService = proxy.getAccessService();
-        this.lockService = proxy.getLockService();
-        this.invitationService = proxy.getInvitationService();
         this.resourceService = proxy.getResourceService();
         this.metadata = metadata;
     }
@@ -83,7 +75,7 @@ public class ResourceController extends AccessControlBaseController {
             return deleteResource(descriptor);
         }
         log.warn("Unsupported HTTP method for accessing resource {}", descriptor.getUrl());
-        return context.respond(BAD_REQUEST, "Unsupported HTTP method");
+        return context.respond(HttpStatus.BAD_REQUEST, "Unsupported HTTP method");
     }
 
     private String getContentType() {
@@ -257,31 +249,16 @@ public class ResourceController extends AccessControlBaseController {
             return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
         }
 
-        vertx.executeBlocking(() -> {
-                    EtagHeader etag = ProxyUtil.etag(context.getRequest());
-                    String bucketName = descriptor.getBucketName();
-                    String bucketLocation = descriptor.getBucketLocation();
+        EtagHeader etag = ProxyUtil.etag(context.getRequest());
 
-                    return lockService.underBucketLock(bucketLocation, () -> {
-                        invitationService.cleanUpResourceLink(bucketName, bucketLocation, descriptor);
-                        shareService.revokeSharedResource(bucketName, bucketLocation, descriptor);
-
-                        boolean deleted = true;
-
-                        if (descriptor.getType() == ResourceTypes.APPLICATION) {
-                            applicationService.deleteApplication(descriptor, etag);
-                        } else {
-                            deleted = resourceService.deleteResource(descriptor, etag);
-                        }
-
-                        if (!deleted) {
-                            throw new ResourceNotFoundException();
-                        }
-
-                        return null;
-                    });
-                }, false)
-                .onSuccess(ignore -> context.respond(HttpStatus.OK))
+        vertx.executeBlocking(() -> proxy.getResourceOperationService().deleteResource(descriptor, etag), false)
+                .onSuccess(deleted -> {
+                    if (deleted) {
+                        context.respond(HttpStatus.OK);
+                    } else {
+                        context.respond(HttpStatus.NOT_FOUND, "Not found: " + descriptor.getUrl());
+                    }
+                })
                 .onFailure(error -> handleError(descriptor, error));
 
         return Future.succeededFuture();

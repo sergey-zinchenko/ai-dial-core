@@ -1,5 +1,6 @@
 package com.epam.aidial.core.server.log;
 
+import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.config.Upstream;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
@@ -14,6 +15,7 @@ import com.epam.deltix.gflog.api.LogLevel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBufInputStream;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -36,6 +38,9 @@ import javax.annotation.Nullable;
 public class GfLogStore implements LogStore {
 
     private static final Log LOGGER = LogFactory.getLog("aidial.log");
+    // Max allowed size is 4 mb for request/response body
+    private static final int MAX_BODY_SIZE_BYTES = 4 * 1024 * 1024;
+
     private final Vertx vertx;
 
     public GfLogStore(Vertx vertx) {
@@ -52,10 +57,22 @@ public class GfLogStore implements LogStore {
     }
 
     private Void doSave(ProxyContext context) {
-        LogEntry entry = LOGGER.log(LogLevel.INFO);
+        // Note. Any logs must be written by slf4j logger:
+        // 1. before the prompt logger starts writing any message OR
+        // 2. after the prompt logger ends writing messages
 
+        // Any new items must be added to the section below
+        // prepare items to be written by the prompt logger
+        Buffer responseBody = context.getResponseBody();
+        String assembledStreamingResponse = null;
+        if (isStreamingResponse(responseBody) && !exceedLimit(responseBody)) {
+            assembledStreamingResponse = assembleStreamingResponse(responseBody);
+        }
+        // end
+
+        LogEntry entry = LOGGER.log(LogLevel.INFO);
         try {
-            append(context, entry);
+            append(context, entry, assembledStreamingResponse);
             entry.commit();
         } catch (Throwable e) {
             entry.abort();
@@ -64,7 +81,7 @@ public class GfLogStore implements LogStore {
         return null;
     }
 
-    private void append(ProxyContext context, LogEntry entry) throws JsonProcessingException {
+    private void append(ProxyContext context, LogEntry entry, String assembledStreamingResponse) throws JsonProcessingException {
         HttpServerRequest request = context.getRequest();
         HttpServerResponse response = context.getResponse();
 
@@ -101,17 +118,17 @@ public class GfLogStore implements LogStore {
             append(entry, "}", false);
         }
 
-        append(entry, ",\"deployment\":\"", false);
-        append(entry, context.getDeployment().getName(), true);
-        append(entry, "\"", false);
+        Deployment deployment = context.getDeployment();
+        if (deployment != null) {
+            append(entry, ",\"deployment\":\"", false);
+            append(entry, deployment.getName(), true);
+            append(entry, "\"", false);
+        }
 
-        String sourceDeployment = context.getSourceDeployment();
-        if (sourceDeployment != null) {
-            String initialDeployment = context.getInitialDeployment();
+        String parentDeployment = getParentDeployment(context);
+        if (parentDeployment != null) {
             append(entry, ",\"parent_deployment\":\"", false);
-            // if deployment(callee) is configured with interceptors the return initial deployment(which triggers interceptors)
-            // otherwise return source deployment(caller)
-            append(entry, initialDeployment != null ? initialDeployment : sourceDeployment, true);
+            append(entry, parentDeployment, true);
             append(entry, "\"", false);
         }
 
@@ -123,11 +140,10 @@ public class GfLogStore implements LogStore {
 
         if (!context.isSecuredApiKey()) {
             append(entry, ",\"assembled_response\":\"", false);
-            Buffer responseBody = context.getResponseBody();
-            if (isStreamingResponse(responseBody)) {
-                append(entry, assembleStreamingResponse(responseBody), true);
+            if (assembledStreamingResponse != null) {
+                append(entry, assembledStreamingResponse, true);
             } else {
-                append(entry, responseBody);
+                append(entry, context.getResponseBody());
             }
             append(entry, "\"", false);
         }
@@ -180,10 +196,19 @@ public class GfLogStore implements LogStore {
     }
 
     private static void append(LogEntry entry, Buffer buffer) {
-        if (buffer != null) {
-            byte[] bytes = buffer.getBytes();
-            String chars = new String(bytes, StandardCharsets.UTF_8); // not efficient, but ok for now
-            append(entry, chars, true);
+        if (buffer == null) {
+            return;
+        }
+        boolean largeBuffer = exceedLimit(buffer);
+        if (largeBuffer) {
+            buffer = buffer.slice(0, MAX_BODY_SIZE_BYTES);
+        }
+        byte[] bytes = buffer.getBytes();
+        String chars = new String(bytes, StandardCharsets.UTF_8); // not efficient, but ok for now
+        append(entry, chars, true);
+        if (largeBuffer) {
+            // append a special marker that entry is cut off due to its large size
+            append(entry, ">>", false);
         }
     }
 
@@ -230,6 +255,10 @@ public class GfLogStore implements LogStore {
     private static String formatTimestamp(long timestamp) {
         return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC"))
                 .format(DateTimeFormatter.ISO_DATE_TIME);
+    }
+
+    private static boolean exceedLimit(Buffer body) {
+        return body.length() > MAX_BODY_SIZE_BYTES;
     }
 
     /**
@@ -340,5 +369,28 @@ public class GfLogStore implements LogStore {
             }
         }
         return j == dataToken.length();
+    }
+
+    @VisibleForTesting
+    static String getParentDeployment(ProxyContext context) {
+        List<String> interceptors = context.getInterceptors();
+        if (interceptors == null) {
+            return context.getSourceDeployment();
+        }
+        // skip interceptors and return the deployment which called the current one
+        List<String> executionPath = context.getExecutionPath();
+        if (executionPath == null) {
+            return null;
+        }
+        int i = executionPath.size() - 2;
+        for (int j = interceptors.size() - 1; i >= 0 && j >= 0; i--, j--) {
+            String deployment = executionPath.get(i);
+            String interceptor = interceptors.get(j);
+            if (!deployment.equals(interceptor)) {
+                log.warn("Can't find parent deployment because interceptor path doesn't match: expected - {}, actual - {}", interceptor, deployment);
+                return null;
+            }
+        }
+        return i < 0 ? null : executionPath.get(i);
     }
 }

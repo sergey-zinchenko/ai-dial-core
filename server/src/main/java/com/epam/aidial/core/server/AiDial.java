@@ -60,6 +60,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -100,7 +101,7 @@ public class AiDial {
             client = vertx.createHttpClient(new HttpClientOptions(settings("client")));
 
             LogStore logStore = new GfLogStore(vertx);
-            UpstreamRouteProvider upstreamRouteProvider = new UpstreamRouteProvider();
+            UpstreamRouteProvider upstreamRouteProvider = new UpstreamRouteProvider(vertx, Random::new);
 
             if (accessTokenValidator == null) {
                 accessTokenValidator = new AccessTokenValidator(settings("identityProviders"), vertx, client);
@@ -120,19 +121,21 @@ public class AiDial {
             resourceService = new ResourceService(timerService, redis, storage, lockService, resourceServiceSettings, storage.getPrefix());
             InvitationService invitationService = new InvitationService(resourceService, encryptionService, settings("invitations"));
             ApiKeyStore apiKeyStore = new ApiKeyStore(resourceService, vertx);
-            ConfigStore configStore = new FileConfigStore(vertx, settings("config"), apiKeyStore, upstreamRouteProvider);
+            ConfigStore configStore = new FileConfigStore(vertx, settings("config"), apiKeyStore);
             ApplicationService applicationService = new ApplicationService(vertx, client, redis,
                     encryptionService, resourceService, lockService, generator, settings("applications"));
             ShareService shareService = new ShareService(resourceService, invitationService, encryptionService, applicationService, configStore);
             RuleService ruleService = new RuleService(resourceService);
             AccessService accessService = new AccessService(encryptionService, shareService, ruleService, settings("access"));
             NotificationService notificationService = new NotificationService(resourceService, encryptionService);
+            ResourceOperationService resourceOperationService = new ResourceOperationService(applicationService,
+                    resourceService, invitationService, shareService, lockService);
             PublicationService publicationService = new PublicationService(encryptionService, resourceService, accessService,
-                    ruleService, notificationService, applicationService, generator, clock);
+                    ruleService, notificationService, applicationService, resourceOperationService, generator, clock);
             RateLimiter rateLimiter = new RateLimiter(vertx, resourceService);
 
+
             TokenStatsTracker tokenStatsTracker = new TokenStatsTracker(vertx, resourceService);
-            ResourceOperationService resourceOperationService = new ResourceOperationService(applicationService, resourceService, invitationService, shareService);
 
             HeartbeatService heartbeatService = new HeartbeatService(
                     vertx, settings("resources").getLong("heartbeatPeriod"));

@@ -25,6 +25,8 @@ import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.epam.aidial.core.server.controller.ModelController.createModel;
+
 @RequiredArgsConstructor
 public class DeploymentController {
 
@@ -42,7 +44,7 @@ public class DeploymentController {
             return context.respond(HttpStatus.FORBIDDEN);
         }
 
-        DeploymentData data = createDeployment(model);
+        DeploymentData data = createModel(model);
         return context.respond(HttpStatus.OK, data);
     }
 
@@ -52,7 +54,7 @@ public class DeploymentController {
 
         for (Model model : config.getModels().values()) {
             if (model.hasAccess(context.getUserRoles())) {
-                DeploymentData deployment = createDeployment(model);
+                DeploymentData deployment = createModel(model);
                 deployments.add(deployment);
             }
         }
@@ -129,13 +131,6 @@ public class DeploymentController {
 
             return app;
         }, false);
-    }
-
-    private static DeploymentData createDeployment(Model model) {
-        DeploymentData deployment = new DeploymentData();
-        deployment.setId(model.getName());
-        deployment.setModel(model.getName());
-        return deployment;
     }
 
     static FeaturesData createFeatures(Features features) {

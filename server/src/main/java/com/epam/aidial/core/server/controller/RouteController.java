@@ -7,11 +7,10 @@ import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.data.ErrorData;
 import com.epam.aidial.core.server.limiter.RateLimitResult;
-import com.epam.aidial.core.server.upstream.RouteEndpointProvider;
-import com.epam.aidial.core.server.upstream.UpstreamProvider;
 import com.epam.aidial.core.server.upstream.UpstreamRoute;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.vertx.stream.BufferingReadStream;
+import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
@@ -25,8 +24,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.client.utils.URLEncodedUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -48,7 +50,7 @@ public class RouteController implements Controller {
         }
 
         if (!route.hasAccess(context.getUserRoles())) {
-            log.error("Forbidden route {}. Trace: {}. Span: {}. Key: {}. User sub: {}.",
+            log.error("Forbidden route {}. Trace: {}. Span: {}. Project: {}. User sub: {}.",
                     route.getName(), context.getTraceId(), context.getSpanId(), context.getProject(), context.getUserSub());
             context.respond(HttpStatus.FORBIDDEN, "Forbidden route");
             return Future.succeededFuture();
@@ -56,15 +58,10 @@ public class RouteController implements Controller {
 
         Route.Response response = route.getResponse();
         if (response == null) {
-            UpstreamProvider upstreamProvider = new RouteEndpointProvider(route);
-            UpstreamRoute upstreamRoute = proxy.getUpstreamRouteProvider().get(upstreamProvider);
-
-            if (!upstreamRoute.available()) {
-                log.warn("RouteController can't find a upstream route to proceed the request: {}", getRequestUri());
-                context.respond(HttpStatus.BAD_GATEWAY, "No route");
+            UpstreamRoute upstreamRoute = proxy.getUpstreamRouteProvider().get(route);
+            if (!canRetry(upstreamRoute)) {
                 return Future.succeededFuture();
             }
-
             context.setTraceOperation("Send request to %s route".formatted(route.getName()));
             context.setUpstreamRoute(upstreamRoute);
         } else {
@@ -88,11 +85,6 @@ public class RouteController implements Controller {
     private Future<?> sendRequest() {
         UpstreamRoute route = context.getUpstreamRoute();
         HttpServerRequest request = context.getRequest();
-
-        if (!route.available()) {
-            log.warn("RouteController can't find a upstream route to proceed the request: {}", getRequestUri());
-            return context.respond(HttpStatus.BAD_GATEWAY, "No route");
-        }
 
         Upstream upstream = route.get();
         Objects.requireNonNull(upstream);
@@ -158,13 +150,19 @@ public class RouteController implements Controller {
         if (responseStatusCode == HttpStatus.TOO_MANY_REQUESTS.getCode()) {
             UpstreamRoute upstreamRoute = context.getUpstreamRoute();
             upstreamRoute.fail(proxyResponse);
-            upstreamRoute.next();
-            sendRequest(); // try next
+            // get next upstream
+            if (canRetry(upstreamRoute)) {
+                sendRequest(); // try next
+            }
             return;
         }
 
         if (responseStatusCode == 200) {
             context.getUpstreamRoute().succeed();
+            proxy.getRateLimiter().increase(context, context.getRoute()).onFailure(error -> log.warn("Failed to increase limit. Trace: {}. Span: {}",
+                    context.getTraceId(), context.getSpanId(), error));
+        } else {
+            context.getUpstreamRoute().fail(proxyResponse);
         }
 
         BufferingReadStream proxyResponseStream = new BufferingReadStream(proxyResponse,
@@ -185,6 +183,16 @@ public class RouteController implements Controller {
                 .onFailure(this::handleResponseError);
     }
 
+    private boolean canRetry(UpstreamRoute route) {
+        try {
+            route.next();
+        } catch (HttpException e) {
+            context.respond(e);
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Called when proxy sent response from the origin to the client.
      */
@@ -198,10 +206,21 @@ public class RouteController implements Controller {
         ErrorData rateLimitError = new ErrorData();
         rateLimitError.getError().setCode(String.valueOf(result.status().getCode()));
         rateLimitError.getError().setMessage(result.errorMessage());
-        log.error("Rate limit error {}. Key: {}. User sub: {}. Route: {}. Trace: {}. Span: {}", result.errorMessage(),
+
+        log.error("Rate limit error {}. Project: {}. User sub: {}. Route: {}. Trace: {}. Span: {}", result.errorMessage(),
                 context.getProject(), context.getUserSub(), context.getRoute().getName(), context.getTraceId(),
                 context.getSpanId());
-        context.respond(result.status(), rateLimitError);
+
+        String errorMessage = ProxyUtil.convertToString(rateLimitError);
+        HttpException httpException;
+        if (result.replyAfterSeconds() >= 0) {
+            Map<String, String> headers = Map.of(HttpHeaders.RETRY_AFTER.toString(), Long.toString(result.replyAfterSeconds()));
+            httpException = new HttpException(result.status(), errorMessage, headers);
+        } else {
+            httpException = new HttpException(result.status(), errorMessage);
+        }
+
+        context.respond(httpException);
     }
 
     private void handleError(Throwable error) {
@@ -226,8 +245,10 @@ public class RouteController implements Controller {
         UpstreamRoute upstreamRoute = context.getUpstreamRoute();
         // for 5xx errors we use exponential backoff strategy, so passing retryAfterSeconds parameter makes no sense
         upstreamRoute.fail(HttpStatus.BAD_GATEWAY);
-        upstreamRoute.next();
-        sendRequest(); // try next
+        // get next upstream
+        if (canRetry(upstreamRoute)) {
+            sendRequest(); // try next
+        }
     }
 
     /**
@@ -238,8 +259,10 @@ public class RouteController implements Controller {
         UpstreamRoute upstreamRoute = context.getUpstreamRoute();
         // for 5xx errors we use exponential backoff strategy, so passing retryAfterSeconds parameter makes no sense
         upstreamRoute.fail(HttpStatus.BAD_GATEWAY);
-        upstreamRoute.next();
-        sendRequest(); // try next
+        // get next upstream
+        if (canRetry(upstreamRoute)) {
+            sendRequest(); // try next
+        }
     }
 
     /**
@@ -283,6 +306,10 @@ public class RouteController implements Controller {
         URIBuilder uriBuilder = new URIBuilder(upstream.getEndpoint());
         if (context.getRoute().isRewritePath()) {
             uriBuilder.setPath(context.getRequest().path());
+            String query = context.getRequest().query();
+            if (query != null) {
+                uriBuilder.setParameters(URLEncodedUtils.parse(query, StandardCharsets.UTF_8));
+            }
         }
         return uriBuilder.toString();
     }

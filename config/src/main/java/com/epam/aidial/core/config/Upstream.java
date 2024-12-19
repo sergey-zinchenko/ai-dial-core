@@ -11,8 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Upstream {
 
-    public static final int ERROR_THRESHOLD = 3;
-
     private String endpoint;
     private String key;
     @JsonDeserialize(using = JsonToStringDeserializer.class)

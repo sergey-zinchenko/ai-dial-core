@@ -1,9 +1,10 @@
 package com.epam.aidial.core.server.limiter;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ThreadLocalRandom;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RateBucketTest {
 
@@ -53,6 +54,98 @@ class RateBucketTest {
         update(49, 0);
     }
 
+    @Test
+    public void testRetryAfterMinute() {
+        bucket = new RateBucket(RateWindow.MINUTE);
+
+        update(0, 0);
+        assertEquals(0, bucket.retryAfter(30));
+        add(0, 10, 10);
+
+        update(5, 10);
+        assertEquals(0, bucket.retryAfter(30));
+        add(5, 20, 30);
+
+        update(15, 30);
+        assertEquals(45, bucket.retryAfter(30));
+        add(15, 30, 60);
+
+        update(25, 60);
+        add(25, 10, 70);
+
+        update(60, 60);
+        assertEquals(15, bucket.retryAfter(30));
+    }
+
+    @Test
+    void testWeekBucket() {
+        bucket = new RateBucket(RateWindow.WEEK);
+
+        update(0, 0);
+        add(0, 10, 10);
+        add(0, 20, 30);
+        update(0, 30);
+
+        add(1, 30, 60);
+        add(6, 40, 100);
+        update(6, 100);
+
+        add(7, 10, 80);
+        update(7, 80);
+
+        add(8, 5, 55);
+        update(8, 55);
+
+        update(15, 0);
+    }
+
+    @Test
+    void testMonthBucket() {
+        bucket = new RateBucket(RateWindow.MONTH);
+
+        update(0, 0);
+        add(0, 10, 10);
+        add(0, 20, 30);
+        update(0, 30);
+
+        add(1, 30, 60);
+        add(29, 40, 100);
+        update(29, 100);
+
+        add(30, 10, 80);
+        update(30, 80);
+
+        add(31, 5, 55);
+        update(31, 55);
+
+        update(61, 0);
+    }
+
+    @Test
+    public void testRetryAfterDay() {
+        bucket = new RateBucket(RateWindow.DAY);
+
+        update(0, 0);
+        assertEquals(0, bucket.retryAfter(30));
+        add(0, 10, 10);
+
+        update(5, 10);
+        assertEquals(0, bucket.retryAfter(30));
+        add(5, 20, 30);
+
+        update(10, 30);
+        // need to wait 14 hours
+        assertEquals(14 * 60 * 60, bucket.retryAfter(30));
+        add(10, 30, 60);
+
+        update(20, 60);
+        add(23, 10, 70);
+
+        update(24, 60);
+        // need to wait 10 hours
+        assertEquals(10 * 60 * 60, bucket.retryAfter(30));
+    }
+
     private void add(long interval, long count, long expected) {
         RateWindow window = bucket.getWindow();
         long whole = interval * window.interval();
@@ -60,7 +153,7 @@ class RateBucketTest {
 
         long timestamp = window.window() + whole + fraction;
         long actual = bucket.add(timestamp, count);
-        Assertions.assertEquals(expected, actual);
+        assertEquals(expected, actual);
     }
 
     private void update(long interval, long expected) {
@@ -70,6 +163,6 @@ class RateBucketTest {
 
         long timestamp = window.window() + whole + fraction;
         long actual = bucket.update(timestamp);
-        Assertions.assertEquals(expected, actual);
+        assertEquals(expected, actual);
     }
 }
