@@ -168,7 +168,7 @@ public class ApplicationTypeSchemaUtils {
             for (String item : propsCollector.collect()) {
                 try {
                     ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
-                    if (!resourceService.hasResource(descriptor)) {
+                    if (!descriptor.isFolder() && !resourceService.hasResource(descriptor)) {
                         throw new ApplicationTypeSchemaValidationException("Resource listed as dependent to the application not found or inaccessible: " + item);
                     }
                     result.add(descriptor);
