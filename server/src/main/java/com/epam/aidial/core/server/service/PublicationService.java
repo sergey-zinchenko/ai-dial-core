@@ -378,21 +378,23 @@ public class PublicationService {
         validateRules(publication);
     }
 
-    private static String buildTargetFolderForCustomAppFiles(Publication publication) {
-        String tempTargetFolder = publication.getTargetFolder();
-        int separatorIndex = tempTargetFolder.indexOf(ResourceDescriptor.PATH_SEPARATOR);
+    private static String buildTargetFolderForCustomAppFiles(Publication publication, Publication.Resource resource) {
+        String targetFolder = publication.getTargetFolder();
+        int separatorIndex = targetFolder.indexOf(ResourceDescriptor.PATH_SEPARATOR);
         if (separatorIndex != -1) {
-            tempTargetFolder = tempTargetFolder.substring(separatorIndex + 1);
+            targetFolder = targetFolder.substring(separatorIndex + 1);
         }
-        return tempTargetFolder;
+
+        String targetUrl = resource.getTargetUrl();
+        String appName = targetUrl.substring(targetUrl.lastIndexOf(ResourceDescriptor.PATH_SEPARATOR) + 1);
+
+        return targetFolder + ResourceDescriptor.PATH_SEPARATOR + "." + appName;
     }
 
     private void addCustomApplicationRelatedFiles(ProxyContext context, Publication publication) {
         List<String> existingUrls = publication.getResources().stream()
                 .map(Publication.Resource::getSourceUrl)
                 .toList();
-
-        final String targetFolder = buildTargetFolderForCustomAppFiles(publication);
 
         List<Publication.Resource> linkedResourcesToPublish = publication.getResources().stream()
                 .filter(resource -> resource.getAction() != Publication.ResourceAction.DELETE)
@@ -405,13 +407,12 @@ public class PublicationService {
                     if (application.getCustomAppSchemaId() == null) {
                         return Stream.empty();
                     }
-                    Publication.ResourceAction action = resource.getAction();
+                    String targetFolder = buildTargetFolderForCustomAppFiles(publication, resource);
                     return ApplicationTypeSchemaUtils.getFiles(context.getConfig(), application, encryption, resourceService)
                             .stream()
-                            .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl())
-                                    && !sourceDescriptor.isPublic())
+                            .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl()) && !sourceDescriptor.isPublic())
                             .map(sourceDescriptor -> new Publication.Resource()
-                                    .setAction(action)
+                                    .setAction(resource.getAction())
                                     .setSourceUrl(sourceDescriptor.getUrl())
                                     .setTargetUrl(ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE,
                                             ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PATH_SEPARATOR,
@@ -602,8 +603,6 @@ public class PublicationService {
             }
         }
     }
-
-
 
 
     private void copyReviewToTargetResources(List<Publication.Resource> resources) {
