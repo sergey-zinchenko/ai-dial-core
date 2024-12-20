@@ -379,22 +379,20 @@ public class PublicationService {
     }
 
     private static String buildTargetFolderForCustomAppFiles(Publication publication, Publication.Resource resource) {
-        String targetFolder = publication.getTargetFolder();
-        int separatorIndex = targetFolder.indexOf(ResourceDescriptor.PATH_SEPARATOR);
-        if (separatorIndex != -1) {
-            targetFolder = targetFolder.substring(separatorIndex + 1);
-        }
-
         String targetUrl = resource.getTargetUrl();
+        int firstSeparatorIndex = targetUrl.indexOf(ResourceDescriptor.PATH_SEPARATOR);
+        String appPath = targetUrl.substring(targetUrl.indexOf(ResourceDescriptor.PATH_SEPARATOR,
+                firstSeparatorIndex + 1) + 1, targetUrl.lastIndexOf(ResourceDescriptor.PATH_SEPARATOR));
         String appName = targetUrl.substring(targetUrl.lastIndexOf(ResourceDescriptor.PATH_SEPARATOR) + 1);
-
-        return targetFolder + ResourceDescriptor.PATH_SEPARATOR + "." + appName;
+        return appPath + ResourceDescriptor.PATH_SEPARATOR + "." + appName + ResourceDescriptor.PATH_SEPARATOR;
     }
 
     private void addCustomApplicationRelatedFiles(ProxyContext context, Publication publication) {
         List<String> existingUrls = publication.getResources().stream()
                 .map(Publication.Resource::getSourceUrl)
                 .toList();
+
+        Map<String, Integer> fileNameCounter = new HashMap<>();
 
         List<Publication.Resource> linkedResourcesToPublish = publication.getResources().stream()
                 .filter(resource -> resource.getAction() != Publication.ResourceAction.DELETE)
@@ -411,12 +409,22 @@ public class PublicationService {
                     return ApplicationTypeSchemaUtils.getFiles(context.getConfig(), application, encryption, resourceService)
                             .stream()
                             .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl()) && !sourceDescriptor.isPublic())
-                            .map(sourceDescriptor -> new Publication.Resource()
-                                    .setAction(resource.getAction())
-                                    .setSourceUrl(sourceDescriptor.getUrl())
-                                    .setTargetUrl(ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE,
-                                            ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PATH_SEPARATOR,
-                                            targetFolder + sourceDescriptor.getName()).getUrl()));
+                            .map(sourceDescriptor -> {
+                                String fileName = sourceDescriptor.getName();
+                                int count = fileNameCounter.getOrDefault(fileName, 0) + 1;
+                                fileNameCounter.put(fileName, count);
+
+                                if (count > 1) {
+                                    fileName = fileName.replaceFirst("(\\.[^.]+)$", "_" + count + "$1");
+                                }
+
+                                return new Publication.Resource()
+                                        .setAction(resource.getAction())
+                                        .setSourceUrl(sourceDescriptor.getUrl())
+                                        .setTargetUrl(ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE,
+                                                ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PATH_SEPARATOR,
+                                                targetFolder + fileName).getUrl());
+                            });
                 })
                 .toList();
 
