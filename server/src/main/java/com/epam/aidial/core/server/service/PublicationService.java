@@ -378,11 +378,11 @@ public class PublicationService {
         validateRules(publication);
     }
 
-    private static String buildTargetFolderForCustomAppFiles(Publication publication, Publication.Resource resource) {
+    private static String buildTargetFolderForCustomAppFiles(Publication.Resource resource) {
         String targetUrl = resource.getTargetUrl();
-        int firstSeparatorIndex = targetUrl.indexOf(ResourceDescriptor.PATH_SEPARATOR);
         String appPath = targetUrl.substring(targetUrl.indexOf(ResourceDescriptor.PATH_SEPARATOR,
-                firstSeparatorIndex + 1) + 1, targetUrl.lastIndexOf(ResourceDescriptor.PATH_SEPARATOR));
+                        targetUrl.indexOf(ResourceDescriptor.PATH_SEPARATOR) + 1) + 1,
+                targetUrl.lastIndexOf(ResourceDescriptor.PATH_SEPARATOR));
         String appName = targetUrl.substring(targetUrl.lastIndexOf(ResourceDescriptor.PATH_SEPARATOR) + 1);
         return appPath + ResourceDescriptor.PATH_SEPARATOR + "." + appName + ResourceDescriptor.PATH_SEPARATOR;
     }
@@ -405,7 +405,7 @@ public class PublicationService {
                     if (application.getCustomAppSchemaId() == null) {
                         return Stream.empty();
                     }
-                    String targetFolder = buildTargetFolderForCustomAppFiles(publication, resource);
+                    String targetFolder = buildTargetFolderForCustomAppFiles(resource);
                     return ApplicationTypeSchemaUtils.getFiles(context.getConfig(), application, encryption, resourceService)
                             .stream()
                             .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl()) && !sourceDescriptor.isPublic())
