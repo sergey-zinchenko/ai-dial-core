@@ -89,7 +89,7 @@ public class DeploymentController {
                                 modifiedApp = ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(context.getConfig(), modifiedApp);
                             }
                             return modifiedApp;
-                        });
+                        }, false);
                     }
                     return Future.succeededFuture(deployment);
                 } catch (Throwable e) {
@@ -97,7 +97,6 @@ public class DeploymentController {
                 }
             }
         }
-
 
         return proxy.getVertx().executeBlocking(() -> {
             String url;

@@ -117,6 +117,7 @@ public class ResourceBaseTest {
             redis = RedisServer.newRedisServer()
                     .port(16370)
                     .bind("127.0.0.1")
+                    .onShutdownForceStop(true)
                     .setting("maxmemory 16M")
                     .setting("maxmemory-policy volatile-lfu")
                     .build();
