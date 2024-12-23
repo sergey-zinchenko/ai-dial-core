@@ -69,7 +69,7 @@ public class ProxyUtil {
             String key = entry.getKey();
             String value = entry.getValue();
 
-            if (!HOP_BY_HOP_HEADERS.contains(key) && !excludeHeaders.contains(key)) {
+            if (!HOP_BY_HOP_HEADERS.contains(key) && !TRACE_HEADERS.contains(key) && !excludeHeaders.contains(key)) {
                 to.add(key, value);
             }
         }
