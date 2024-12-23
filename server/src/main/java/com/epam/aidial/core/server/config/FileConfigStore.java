@@ -12,9 +12,11 @@ import com.epam.aidial.core.config.Model;
 import com.epam.aidial.core.config.Role;
 import com.epam.aidial.core.config.Route;
 import com.epam.aidial.core.server.security.ApiKeyStore;
-import com.epam.aidial.core.server.upstream.UpstreamRouteProvider;
-import com.epam.aidial.core.server.util.ProxyUtil;
+import com.epam.aidial.core.server.validation.ValidationModule;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import lombok.SneakyThrows;
@@ -32,11 +34,13 @@ import static com.epam.aidial.core.config.Config.ASSISTANT;
 @Slf4j
 public final class FileConfigStore implements ConfigStore {
 
+    private final JsonMapper jsonMapper;
     private final String[] paths;
     private volatile Config config;
     private final ApiKeyStore apiKeyStore;
 
     public FileConfigStore(Vertx vertx, JsonObject settings, ApiKeyStore apiKeyStore) {
+        this.jsonMapper = buildJsonMapper(settings);
         this.apiKeyStore = apiKeyStore;
         this.paths = settings.getJsonArray("files")
                 .stream().map(path -> (String) path).toArray(String[]::new);
@@ -126,15 +130,15 @@ public final class FileConfigStore implements ConfigStore {
     }
 
     private Config loadConfig() throws Exception {
-        JsonNode tree = ProxyUtil.MAPPER_WITH_VALIDATION.createObjectNode();
+        JsonNode tree = jsonMapper.createObjectNode();
 
         for (String path : paths) {
             try (InputStream stream = openStream(path)) {
-                tree = ProxyUtil.MAPPER_WITH_VALIDATION.readerForUpdating(tree).readTree(stream);
+                tree = jsonMapper.readerForUpdating(tree).readTree(stream);
             }
         }
 
-        return ProxyUtil.MAPPER_WITH_VALIDATION.convertValue(tree, Config.class);
+        return jsonMapper.convertValue(tree, Config.class);
     }
 
     @SneakyThrows
@@ -194,5 +198,21 @@ public final class FileConfigStore implements ConfigStore {
         if (modelFeatures.getContentPartsSupported() == null) {
             modelFeatures.setContentPartsSupported(features.getContentPartsSupported());
         }
+    }
+
+    private JsonMapper buildJsonMapper(JsonObject settings) {
+        JsonMapper mapper = JsonMapper.builder()
+                .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+                .addModule(new ValidationModule())
+                .build();
+
+        boolean overwriteArrays = settings
+                .getJsonObject("jsonMergeStrategy", new JsonObject())
+                .getBoolean("overwriteArrays", false);
+
+        mapper.configOverride(ArrayNode.class)
+                .setMergeable(!overwriteArrays);
+
+        return mapper;
     }
 }

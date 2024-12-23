@@ -2,7 +2,6 @@ package com.epam.aidial.core.server.util;
 
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.function.BaseRequestFunction;
-import com.epam.aidial.core.server.validation.ValidationModule;
 import com.epam.aidial.core.storage.data.MetadataBase;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,11 +34,6 @@ public class ProxyUtil {
 
     public static final JsonMapper MAPPER = JsonMapper.builder()
             .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
-            .build();
-
-    public static final JsonMapper MAPPER_WITH_VALIDATION = JsonMapper.builder()
-            .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
-            .addModule(new ValidationModule())
             .build();
 
     private static final MultiMap TRACE_HEADERS = MultiMap.caseInsensitiveMultiMap()
