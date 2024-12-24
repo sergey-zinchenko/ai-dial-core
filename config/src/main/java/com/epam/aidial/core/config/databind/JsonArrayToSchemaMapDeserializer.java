@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.databind.node.NullNode;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -22,11 +23,11 @@ public class JsonArrayToSchemaMapDeserializer extends JsonDeserializer<Map<Strin
         Map<String, String> result = new HashMap<>();
         for (int i = 0; i < tree.size(); i++) {
             TreeNode value = tree.get(i);
-            if (value == null) {
+            if (value instanceof NullNode) {
                 throw InvalidFormatException.from(jsonParser, Map.class, "Null value is not expected in schema array");
             }
             if (!value.isObject()) {
-                continue;
+                throw InvalidFormatException.from(jsonParser, Map.class, "Non object value is not expected in schema array");
             }
             JsonNode valueNode = (JsonNode) value;
             if (!valueNode.has("$id")) {
