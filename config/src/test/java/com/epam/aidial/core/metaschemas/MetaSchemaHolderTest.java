@@ -1,0 +1,303 @@
+package com.epam.aidial.core.metaschemas;
+
+import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID;
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.networknt.schema.JsonMetaSchema;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.NonValidationKeyword;
+import com.networknt.schema.ValidationMessage;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.Set;
+
+public class MetaSchemaHolderTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private JsonSchema jsonMetaSchema;
+
+    @BeforeEach
+    void setUp() {
+        JsonMetaSchema metaSchema = MetaSchemaHolder.getMetaschemaBuilder()
+                .keyword(new NonValidationKeyword("dial:meta"))
+                .build();
+        JsonSchemaFactory schemaFactory = JsonSchemaFactory.builder()
+                .defaultMetaSchemaIri(CUSTOM_APPLICATION_META_SCHEMA_ID)
+                .metaSchema(metaSchema)
+                .build();
+        jsonMetaSchema = schemaFactory
+                .getSchema(MetaSchemaHolder.getCustomApplicationMetaSchema());
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_ok_schemaConforms() throws Exception {
+        String customSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"string\","
+                + "    \"format\": \"dial-file-encoded\","
+                + "    \"dial:meta\": {"
+                + "      \"dial:propertyKind\": \"client\","
+                + "      \"dial:propertyOrder\": 1"
+                + "    }"
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(customSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertTrue(metaSchemaValidationMessages.isEmpty(), "Custom schema should be valid against meta schema");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_noMeta() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"string\","
+                + "    \"format\": \"dial-file-encoded\""
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_wrongDialFileType() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"object\","
+                + "    \"format\": \"dial-file-encoded\","
+                + "    \"dial:meta\": {"
+                + "      \"dial:propertyKind\": \"client\","
+                + "      \"dial:propertyOrder\": 1"
+                + "    },"
+                + "    \"dial:file\": true"
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_wrongKind() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"string\","
+                + "    \"format\": \"dial-file-encoded\","
+                + "    \"dial:meta\": {"
+                + "      \"dial:propertyKind\": \"client-server\","
+                + "      \"dial:propertyOrder\": 1"
+                + "    }"
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_wrongCount() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"string\","
+                + "    \"format\": \"dial-file-encoded\","
+                + "    \"dial:meta\": {"
+                + "      \"dial:propertyKind\": \"client\","
+                + "      \"dial:propertyOrder\": \"1\""
+                + "    }"
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_notTopLayerMeta() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"foo\": {"
+                + "    \"type\": \"object\","
+                + "    \"dial:meta\": {"
+                + "        \"dial:propertyKind\": \"client\","
+                + "        \"dial:propertyOrder\": 1"
+                + "      },"
+                + "    \"properties\": {"
+                + "      \"file\": {"
+                + "        \"type\": \"string\","
+                + "        \"format\": \"dial-file-encoded\","
+                + "        \"dial:meta\": {"
+                + "             \"dial:propertyKind\": \"client\","
+                + "             \"dial:propertyOrder\": 1"
+                + "         }"
+                + "      }"
+                + "    },"
+                + "    \"required\": [\"file\"]"
+                + "  }"
+                + "},"
+                + "\"required\": [\"foo\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_InvalidFormatOfDialFile() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"string\","
+                + "    \"format\": \"uri\","
+                + "    \"dial:meta\": {"
+                + "      \"dial:propertyKind\": \"client\","
+                + "      \"dial:propertyOrder\": 1"
+                + "    },"
+                + "    \"dial:file\": true"
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_EditorUrlAbsent() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"string\","
+                + "    \"format\": \"dial-file-encoded\","
+                + "    \"dial:meta\": {"
+                + "      \"dial:propertyKind\": \"client\","
+                + "      \"dial:propertyOrder\": 1"
+                + "    },"
+                + "    \"dial:file\": true"
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_displayNameAbsent() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"string\","
+                + "    \"format\": \"dial-file-encoded\","
+                + "    \"dial:meta\": {"
+                + "      \"dial:propertyKind\": \"client\","
+                + "      \"dial:propertyOrder\": 1"
+                + "    },"
+                + "    \"dial:file\": true"
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_failed_completionEndpointAbsent() throws Exception {
+        String InvalidCustomSchemaStr = "{"
+                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+                + "\"properties\": {"
+                + "  \"file\": {"
+                + "    \"type\": \"string\","
+                + "    \"format\": \"dial-file-encoded\","
+                + "    \"dial:meta\": {"
+                + "      \"dial:propertyKind\": \"client\","
+                + "      \"dial:propertyOrder\": 1"
+                + "    },"
+                + "    \"dial:file\": true"
+                + "  }"
+                + "},"
+                + "\"required\": [\"file\"]"
+                + "}";
+        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
+                " meta schema because of a single reason");
+    }
+}
