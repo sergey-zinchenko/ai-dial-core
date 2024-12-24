@@ -13,13 +13,13 @@ import org.junit.jupiter.api.Test;
 import java.util.Set;
 
 import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DialFileFormatTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private JsonSchemaFactory schemaFactory;
-    private final static String customSchemaStr = "{"
+    private static final String customSchemaStr = "{"
             + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
             + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
             + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -37,6 +37,7 @@ public class DialFileFormatTest {
             + "},"
             + "\"required\": [\"file\"]"
             + "}";
+    private JsonSchemaFactory schemaFactory;
 
     @BeforeEach
     void setUp() {

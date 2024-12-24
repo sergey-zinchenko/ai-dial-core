@@ -1,11 +1,7 @@
 package com.epam.aidial.core.metaschemas;
 
-import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID;
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.networknt.schema.JsonMetaSchema;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
@@ -15,6 +11,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
+
+import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.CUSTOM_APPLICATION_META_SCHEMA_ID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MetaSchemaHolderTest {
 
@@ -61,7 +61,7 @@ public class MetaSchemaHolderTest {
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_noMeta() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -75,15 +75,15 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"file\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_wrongDialFileType() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -102,15 +102,15 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"file\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_wrongKind() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -128,15 +128,15 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"file\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_wrongCount() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -154,15 +154,15 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"file\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_notTopLayerMeta() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -190,15 +190,15 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"foo\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_InvalidFormatOfDialFile() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -217,15 +217,15 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"file\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_EditorUrlAbsent() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
@@ -243,15 +243,15 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"file\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_displayNameAbsent() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -269,15 +269,15 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"file\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 
     @Test
     void customSchema_validatesAgainstMetaSchema_failed_completionEndpointAbsent() throws Exception {
-        String InvalidCustomSchemaStr = "{"
+        String invalidCustomSchemaStr = "{"
                 + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
                 + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
                 + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
@@ -295,9 +295,9 @@ public class MetaSchemaHolderTest {
                 + "},"
                 + "\"required\": [\"file\"]"
                 + "}";
-        JsonNode customSchemaNode = MAPPER.readTree(InvalidCustomSchemaStr);
+        JsonNode customSchemaNode = MAPPER.readTree(invalidCustomSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against" +
-                " meta schema because of a single reason");
+        assertEquals(1, metaSchemaValidationMessages.size(), "Custom schema should be invalid against"
+                + " meta schema because of a single reason");
     }
 }
