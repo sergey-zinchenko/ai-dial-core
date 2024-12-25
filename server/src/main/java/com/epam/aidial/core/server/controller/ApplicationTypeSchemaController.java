@@ -43,7 +43,7 @@ public class ApplicationTypeSchemaController {
                 .onFailure(throwable -> context.respond(throwable, FAILED_READ_SCHEMA_MESSAGE));
     }
 
-    private ObjectNode getSchema() throws JsonProcessingException {
+    ObjectNode getSchema() throws JsonProcessingException {
         HttpServerRequest request = context.getRequest();
         String schemaIdParam = request.getParam(ID_PARAM);
 
