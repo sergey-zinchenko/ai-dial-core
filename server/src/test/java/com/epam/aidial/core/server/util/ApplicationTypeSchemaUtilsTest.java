@@ -26,6 +26,33 @@ public class ApplicationTypeSchemaUtilsTest {
     private Config config;
     private Application application;
 
+    private final String schema = "{"
+            + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
+            + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
+            + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
+            + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
+            + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
+            + "\"properties\": {"
+            + "  \"clientFile\": {"
+            + "    \"type\": \"string\","
+            + "    \"format\": \"dial-file-encoded\","
+            + "    \"dial:meta\": {"
+            + "      \"dial:propertyKind\": \"client\","
+            + "      \"dial:propertyOrder\": 1"
+            + "    }"
+            + "  },"
+            + "  \"serverFile\": {"
+            + "    \"type\": \"string\","
+            + "    \"format\": \"dial-file-encoded\","
+            + "    \"dial:meta\": {"
+            + "      \"dial:propertyKind\": \"server\","
+            + "      \"dial:propertyOrder\": 2"
+            + "    }"
+            + "  }"
+            + "},"
+            + "\"required\": [\"clientFile\",\"serverFile\"]"
+            + "}";
+
     @BeforeEach
     void setUp() {
         config = mock(Config.class);
@@ -62,32 +89,6 @@ public class ApplicationTypeSchemaUtilsTest {
 
     @Test
     public void getCustomServerProperties_returnsProperties_whenSchemaExists() {
-        String schema = "{"
-                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
-                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
-                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
-                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
-                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
-                + "\"properties\": {"
-                + "  \"clientFile\": {"
-                + "    \"type\": \"string\","
-                + "    \"format\": \"dial-file-encoded\","
-                + "    \"dial:meta\": {"
-                + "      \"dial:propertyKind\": \"client\","
-                + "      \"dial:propertyOrder\": 1"
-                + "    }"
-                + "  },"
-                + "  \"serverFile\": {"
-                + "    \"type\": \"string\","
-                + "    \"format\": \"dial-file-encoded\","
-                + "    \"dial:meta\": {"
-                + "      \"dial:propertyKind\": \"server\","
-                + "      \"dial:propertyOrder\": 2"
-                + "    }"
-                + "  }"
-                + "},"
-                + "\"required\": [\"clientFile\",\"serverFile\"]"
-                + "}";
         Map<String, Object> clientProperties = Map.of("clientFile",
                 "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         Map<String, Object> serverProperties = Map.of(
@@ -126,32 +127,6 @@ public class ApplicationTypeSchemaUtilsTest {
 
     @Test
     public void filterCustomClientProperties_returnsFilteredProperties_whenSchemaExists() {
-        String schema = "{"
-                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
-                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
-                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
-                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
-                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
-                + "\"properties\": {"
-                + "  \"clientFile\": {"
-                + "    \"type\": \"string\","
-                + "    \"format\": \"dial-file-encoded\","
-                + "    \"dial:meta\": {"
-                + "      \"dial:propertyKind\": \"client\","
-                + "      \"dial:propertyOrder\": 1"
-                + "    }"
-                + "  },"
-                + "  \"serverFile\": {"
-                + "    \"type\": \"string\","
-                + "    \"format\": \"dial-file-encoded\","
-                + "    \"dial:meta\": {"
-                + "      \"dial:propertyKind\": \"server\","
-                + "      \"dial:propertyOrder\": 2"
-                + "    }"
-                + "  }"
-                + "},"
-                + "\"required\": [\"clientFile\",\"serverFile\"]"
-                + "}";
         Map<String, Object> clientProperties = Map.of("clientFile",
                 "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         Map<String, Object> customProperties = new HashMap<>(clientProperties);
@@ -184,32 +159,7 @@ public class ApplicationTypeSchemaUtilsTest {
         when(ctx.getProxy()).thenReturn(proxy);
         when(proxy.getAccessService()).thenReturn(accessService);
         when(accessService.hasWriteAccess(resource, ctx)).thenReturn(false);
-        String schema = "{"
-                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
-                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
-                + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
-                + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
-                + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
-                + "\"properties\": {"
-                + "  \"clientFile\": {"
-                + "    \"type\": \"string\","
-                + "    \"format\": \"dial-file-encoded\","
-                + "    \"dial:meta\": {"
-                + "      \"dial:propertyKind\": \"client\","
-                + "      \"dial:propertyOrder\": 1"
-                + "    }"
-                + "  },"
-                + "  \"serverFile\": {"
-                + "    \"type\": \"string\","
-                + "    \"format\": \"dial-file-encoded\","
-                + "    \"dial:meta\": {"
-                + "      \"dial:propertyKind\": \"server\","
-                + "      \"dial:propertyOrder\": 2"
-                + "    }"
-                + "  }"
-                + "},"
-                + "\"required\": [\"clientFile\",\"serverFile\"]"
-                + "}";
+
         Map<String, Object> clientProperties = Map.of("clientFile",
                 "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         Map<String, Object> customProperties = new HashMap<>(clientProperties);
@@ -218,8 +168,8 @@ public class ApplicationTypeSchemaUtilsTest {
         when(ctx.getConfig()).thenReturn(config);
         when(config.getCustomApplicationSchema(eq(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type")))).thenReturn(schema);
         when(application.getCustomProperties()).thenReturn(customProperties);
-
         Application result = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, resource, application);
+
 
         Assertions.assertEquals(clientProperties, result.getCustomProperties());
     }
