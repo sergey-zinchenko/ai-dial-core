@@ -25,6 +25,9 @@ import static org.mockito.Mockito.when;
 public class ApplicationTypeSchemaUtilsTest {
     private Config config;
     private Application application;
+    private ProxyContext ctx;
+    private ResourceDescriptor resource;
+    private AccessService accessService;
 
     private final String schema = "{"
             + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
@@ -53,10 +56,28 @@ public class ApplicationTypeSchemaUtilsTest {
             + "\"required\": [\"clientFile\",\"serverFile\"]"
             + "}";
 
+    Map<String, Object> clientProperties = Map.of("clientFile",
+            "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
+    Map<String, Object> serverProperties = Map.of(
+            "serverFile",
+            "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
+    Map<String, Object> customProperties = new HashMap<>();
+
+
     @BeforeEach
     void setUp() {
         config = mock(Config.class);
         application = mock(Application.class);
+        ctx = mock(ProxyContext.class);
+        resource = mock(ResourceDescriptor.class);
+        Proxy proxy = mock(Proxy.class);
+        accessService = mock(AccessService.class);
+        when(ctx.getProxy()).thenReturn(proxy);
+        when(proxy.getAccessService()).thenReturn(accessService);
+        when(ctx.getConfig()).thenReturn(config);
+
+        customProperties.putAll(clientProperties);
+        customProperties.putAll(serverProperties);
     }
 
     @Test
@@ -83,20 +104,14 @@ public class ApplicationTypeSchemaUtilsTest {
     @Test
     public void getCustomApplicationSchemaOrThrow_returnsNull_whenSchemaIdIsNull() {
         when(application.getCustomAppSchemaId()).thenReturn(null);
+
         String result = ApplicationTypeSchemaUtils.getCustomApplicationSchemaOrThrow(config, application);
+
         Assertions.assertNull(result);
     }
 
     @Test
     public void getCustomServerProperties_returnsProperties_whenSchemaExists() {
-        Map<String, Object> clientProperties = Map.of("clientFile",
-                "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
-        Map<String, Object> serverProperties = Map.of(
-                "serverFile",
-                "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
-        Map<String, Object> customProperties = new HashMap<>();
-        customProperties.putAll(clientProperties);
-        customProperties.putAll(serverProperties);
         when(application.getCustomAppSchemaId()).thenReturn(URI.create("schemaId"));
         when(config.getCustomApplicationSchema(any())).thenReturn(schema);
         when(application.getCustomProperties()).thenReturn(customProperties);
@@ -127,16 +142,13 @@ public class ApplicationTypeSchemaUtilsTest {
 
     @Test
     public void filterCustomClientProperties_returnsFilteredProperties_whenSchemaExists() {
-        Map<String, Object> clientProperties = Map.of("clientFile",
-                "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
-        Map<String, Object> customProperties = new HashMap<>(clientProperties);
-        customProperties.put("serverFile", "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
         when(application.getCustomAppSchemaId()).thenReturn(URI.create("schemaId"));
         when(config.getCustomApplicationSchema(any())).thenReturn(schema);
         when(application.getCustomProperties()).thenReturn(customProperties);
 
         Application result = ApplicationTypeSchemaUtils.filterCustomClientProperties(config, application);
 
+        Assertions.assertNotSame(application, result);
         Assertions.assertEquals(clientProperties, result.getCustomProperties());
     }
 
@@ -146,45 +158,34 @@ public class ApplicationTypeSchemaUtilsTest {
 
         Application result = ApplicationTypeSchemaUtils.filterCustomClientProperties(config, application);
 
+        Assertions.assertSame(application, result);
         Assertions.assertEquals(application, result);
     }
 
     @Test
     public void filterCustomClientPropertiesWhenNoWriteAccess_returnsFilteredProperties_whenNoWriteAccess() {
-        ProxyContext ctx = mock(ProxyContext.class);
-        ResourceDescriptor resource = mock(ResourceDescriptor.class);
-        Proxy proxy = mock(Proxy.class);
-        AccessService accessService = mock(AccessService.class);
-        Config config = mock(Config.class);
-        when(ctx.getProxy()).thenReturn(proxy);
-        when(proxy.getAccessService()).thenReturn(accessService);
+        when(application.getCustomAppSchemaId()).thenReturn(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type"));
+        when(application.getCustomProperties()).thenReturn(customProperties);
+        when(config.getCustomApplicationSchema(eq(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type")))).thenReturn(schema);
         when(accessService.hasWriteAccess(resource, ctx)).thenReturn(false);
 
-        Map<String, Object> clientProperties = Map.of("clientFile",
-                "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
-        Map<String, Object> customProperties = new HashMap<>(clientProperties);
-        customProperties.put("serverFile", "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
-        when(application.getCustomAppSchemaId()).thenReturn(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type"));
-        when(ctx.getConfig()).thenReturn(config);
-        when(config.getCustomApplicationSchema(eq(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type")))).thenReturn(schema);
-        when(application.getCustomProperties()).thenReturn(customProperties);
         Application result = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, resource, application);
 
-
+        Assertions.assertNotSame(application, result);
         Assertions.assertEquals(clientProperties, result.getCustomProperties());
     }
 
     @Test
     public void filterCustomClientPropertiesWhenNoWriteAccess_returnsOriginalApplication_whenHasWriteAccess() {
-        ProxyContext ctx = mock(ProxyContext.class);
-        ResourceDescriptor resource = mock(ResourceDescriptor.class);
-        Proxy proxy = mock(Proxy.class);
-        AccessService accessService = mock(AccessService.class);
-        when(ctx.getProxy()).thenReturn(proxy);
-        when(proxy.getAccessService()).thenReturn(accessService);
         when(accessService.hasWriteAccess(resource, ctx)).thenReturn(true);
+        when(application.getCustomAppSchemaId()).thenReturn(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type"));
+        when(application.getCustomProperties()).thenReturn(customProperties);
+        when(config.getCustomApplicationSchema(eq(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type")))).thenReturn(schema);
+
         Application result = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, resource, application);
-        Assertions.assertEquals(application, result);
+
+        Assertions.assertSame(application, result);
+        Assertions.assertEquals(customProperties, result.getCustomProperties());
     }
 
 }
