@@ -56,13 +56,17 @@ public class ApplicationTypeSchemaUtilsTest {
             + "\"required\": [\"clientFile\",\"serverFile\"]"
             + "}";
 
-    Map<String, Object> clientProperties = Map.of("clientFile",
+    private final Map<String, Object> clientProperties = Map.of("clientFile",
             "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
-    Map<String, Object> serverProperties = Map.of(
+    private final Map<String, Object> serverProperties = Map.of(
             "serverFile",
             "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
-    Map<String, Object> customProperties = new HashMap<>();
+    private final Map<String, Object> customProperties = new HashMap<>();
 
+    ApplicationTypeSchemaUtilsTest() {
+        customProperties.putAll(clientProperties);
+        customProperties.putAll(serverProperties);
+    }
 
     @BeforeEach
     void setUp() {
@@ -75,9 +79,6 @@ public class ApplicationTypeSchemaUtilsTest {
         when(ctx.getProxy()).thenReturn(proxy);
         when(proxy.getAccessService()).thenReturn(accessService);
         when(ctx.getConfig()).thenReturn(config);
-
-        customProperties.putAll(clientProperties);
-        customProperties.putAll(serverProperties);
     }
 
     @Test
