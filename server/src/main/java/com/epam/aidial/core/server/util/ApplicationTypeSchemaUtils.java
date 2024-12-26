@@ -103,7 +103,7 @@ public class ApplicationTypeSchemaUtils {
                 throw new ApplicationTypeSchemaProcessingException("Custom application schema does not contain completion endpoint");
             }
             return endpointNode.asText();
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException | IllegalArgumentException e) {
             throw new ApplicationTypeSchemaProcessingException("Failed to get custom application endpoint", e);
         }
     }
