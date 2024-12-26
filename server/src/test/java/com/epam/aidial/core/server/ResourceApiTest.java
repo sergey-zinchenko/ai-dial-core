@@ -322,7 +322,7 @@ class ResourceApiTest extends ResourceBaseTest {
     }
 
     @Test
-    void testApplicationWithTypeSchemaCreation_files_ok() {
+    void testApplicationWithTypeSchemaCreation_Ok_FilesAccessible() {
         Response response = upload(HttpMethod.PUT,"/v1/files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt",null,  """
                   Test1
                 """);
@@ -357,8 +357,30 @@ class ResourceApiTest extends ResourceBaseTest {
     }
 
     @Test
-    void testApplicationWithTypeSchemaCreation_fail() {
+    void testApplicationWithTypeSchemaCreation_Ok_Folder() {
         Response response = send(HttpMethod.PUT,"/v1/applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app_folder",null,  """
+                  {
+                      "displayName": "test_app",
+                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                       "property1": "test property1",
+                       "property2": "test property2",
+                       "property3": [
+                            "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/xyz/"
+                       ],
+                       "userRoles": [
+                            "Admin"
+                       ],
+                       "forwardAuthToken": true,
+                       "iconUrl": "https://mydial.somewhere.com/app-icon.svg",
+                       "description": "My application description"
+                  }
+                """);
+        Assertions.assertEquals(200, response.status());
+    }
+
+    @Test
+    void testApplicationWithTypeSchemaCreation_Failed_FailAccessFile() {
+        Response response = send(HttpMethod.PUT,"/v1/applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app_files_failed",null,  """
                   {
                       "displayName": "test_app",
                       "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
@@ -379,16 +401,11 @@ class ResourceApiTest extends ResourceBaseTest {
     }
 
     @Test
-    void testApplicationWithTypeSchemaCreation_folder_ok() {
-        Response response = send(HttpMethod.PUT,"/v1/applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app",null,  """
+    void testApplicationWithTypeSchemaCreation_Failed_FailMissingProps() {
+        Response response = send(HttpMethod.PUT,"/v1/applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app_props_failed",null,  """
                   {
                       "displayName": "test_app",
                       "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
-                       "property1": "test property1",
-                       "property2": "test property2",
-                       "property3": [
-                            "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/xyz/"
-                       ],
                        "userRoles": [
                             "Admin"
                        ],
@@ -397,6 +414,6 @@ class ResourceApiTest extends ResourceBaseTest {
                        "description": "My application description"
                   }
                 """);
-        Assertions.assertEquals(200, response.status());
+        Assertions.assertEquals(400, response.status());
     }
 }
