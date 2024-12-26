@@ -164,6 +164,9 @@ public class ApplicationTypeSchemaUtils {
                 throw new ApplicationTypeSchemaValidationException("Failed to validate custom app against the schema", validationResult);
             }
             ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get("file");
+            if (propsCollector == null) {
+                return Collections.emptyList();
+            }
             List<ResourceDescriptor> result = new ArrayList<>();
             for (String item : propsCollector.collect()) {
                 try {

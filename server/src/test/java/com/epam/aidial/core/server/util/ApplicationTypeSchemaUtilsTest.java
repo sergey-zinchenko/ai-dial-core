@@ -5,8 +5,10 @@ import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.security.AccessService;
+import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
+import com.epam.aidial.core.storage.service.ResourceService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,7 +45,8 @@ public class ApplicationTypeSchemaUtilsTest {
             + "    \"dial:meta\": {"
             + "      \"dial:propertyKind\": \"client\","
             + "      \"dial:propertyOrder\": 1"
-            + "    }"
+            + "    },"
+            + "    \"dial:file\" : true"
             + "  },"
             + "  \"serverFile\": {"
             + "    \"type\": \"string\","
@@ -51,17 +54,18 @@ public class ApplicationTypeSchemaUtilsTest {
             + "    \"dial:meta\": {"
             + "      \"dial:propertyKind\": \"server\","
             + "      \"dial:propertyOrder\": 2"
-            + "    }"
+            + "    },"
+            + "    \"dial:file\" : true"
             + "  }"
             + "},"
             + "\"required\": [\"clientFile\",\"serverFile\"]"
             + "}";
 
     private final Map<String, Object> clientProperties = Map.of("clientFile",
-            "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
+            "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
     private final Map<String, Object> serverProperties = Map.of(
             "serverFile",
-            "files/DpZGXdhaTxtaR67JyAHgDVkSP3Fo4nvV4FYCWNadE2Ln/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
+            "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
     private final Map<String, Object> customProperties = new HashMap<>();
 
     ApplicationTypeSchemaUtilsTest() {
@@ -300,5 +304,49 @@ public class ApplicationTypeSchemaUtilsTest {
         expectedProperties.put("serverProps", expectedServerProps);
 
         Assertions.assertEquals(expectedProperties, application.getCustomProperties());
+    }
+
+
+    @Test
+    public void getFiles_returnsListOfFiles_whenSchemaExists() {
+        application.setCustomAppSchemaId(URI.create("schemaId"));
+        application.setCustomProperties(customProperties);
+        when(config.getCustomApplicationSchema(any())).thenReturn(schema);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        when(resourceService.hasResource(any())).thenReturn(true);
+
+        List<ResourceDescriptor> result = ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService, resourceService);
+
+        Assertions.assertEquals(2, result.size());
+    }
+
+    @Test
+    public void getFiles_returnsEmptyList_whenSchemaIsNull() {
+        application.setCustomAppSchemaId(null);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        List<ResourceDescriptor> result = ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService, resourceService);
+
+        Assertions.assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void getFiles_throwsException_whenResourceNotFound() {
+        application.setCustomAppSchemaId(URI.create("schemaId"));
+        application.setCustomProperties(customProperties);
+        when(config.getCustomApplicationSchema(any())).thenReturn(schema);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        when(resourceService.hasResource(any())).thenReturn(false);
+
+        Assertions.assertThrows(ApplicationTypeSchemaValidationException.class, () ->
+                ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService, resourceService));
     }
 }
