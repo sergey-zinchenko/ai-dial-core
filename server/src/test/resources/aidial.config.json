@@ -167,5 +167,48 @@
         "rate_limited_route": {}
       }
     }
-  }
+  },
+  "applicationTypeSchemas": [
+    {
+      "$schema": "https://dial.epam.com/application_type_schemas/schema#",
+      "$id": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+      "dial:applicationTypeEditorUrl": "https://mydial.somewhere.com/custom_application_schemas/schema",
+      "dial:applicationTypeDisplayName": "Specific Application Type",
+      "dial:applicationTypeCompletionEndpoint": "http://specific_application_service/opeani/v1/completion",
+      "properties": {
+        "property1": {
+          "title": "Property 1",
+          "type": "string",
+          "dial:meta": {
+            "dial:propertyKind": "client",
+            "dial:propertyOrder": 1
+          }
+        },
+        "property2": {
+          "title": "Property 2",
+          "type": "string",
+          "dial:meta": {
+            "dial:propertyKind": "server",
+            "dial:propertyOrder": 2
+          }
+        },
+        "property3": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "dial-file-encoded",
+            "dial:file": true
+          },
+          "dial:meta": {
+            "dial:propertyKind": "server",
+            "dial:propertyOrder": 3
+          }
+        }
+      },
+      "required": [
+        "property1",
+        "property2"
+      ]
+    }
+  ]
 }

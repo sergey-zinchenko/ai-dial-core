@@ -1,6 +1,5 @@
 package com.epam.aidial.core.server.controller;
 
-
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Deployment;
