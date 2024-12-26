@@ -55,7 +55,7 @@ public class ApplicationTypeSchemaController {
         try {
             schemaId = URI.create(schemaIdParam);
         } catch (IllegalArgumentException e) {
-            throw new HttpException(HttpStatus.BAD_REQUEST, "Schema ID is required");
+            throw new HttpException(HttpStatus.BAD_REQUEST, "Bad Schema ID");
         }
 
         String schema = context.getConfig().getApplicationTypeSchemas().get(schemaId.toString());
