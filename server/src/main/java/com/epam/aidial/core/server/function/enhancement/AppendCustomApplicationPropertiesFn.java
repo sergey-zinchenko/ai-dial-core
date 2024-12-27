@@ -24,14 +24,12 @@ public class AppendCustomApplicationPropertiesFn extends BaseRequestFunction<Obj
         if (!(deployment instanceof Application application && application.getCustomAppSchemaId() != null)) {
             return false;
         }
-        boolean appended = false;
         Map<String, Object> props = ApplicationTypeSchemaUtils.getCustomServerProperties(context.getConfig(), application);
         ObjectNode customAppPropertiesNode = ProxyUtil.MAPPER.createObjectNode();
         for (Map.Entry<String, Object> entry : props.entrySet()) {
             customAppPropertiesNode.putPOJO(entry.getKey(), entry.getValue());
-            appended = true;
         }
         tree.set("custom_application_properties", customAppPropertiesNode);
-        return appended;
+        return true;
     }
 }
