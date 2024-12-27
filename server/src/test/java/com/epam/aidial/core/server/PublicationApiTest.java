@@ -1,11 +1,17 @@
 package com.epam.aidial.core.server;
 
 import com.epam.aidial.core.server.util.ProxyUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.http.HttpMethod;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class PublicationApiTest extends ResourceBaseTest {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
 
     private static final String PUBLICATION_REQUEST = """
             {
@@ -1521,5 +1527,102 @@ class PublicationApiTest extends ResourceBaseTest {
                     }
                 """.formatted(bucket));
         verify(response, 400, "Rule CONTAIN does not have targets");
+    }
+
+    @Test
+    void testApplicationWithTypeSchemaPublish_Ok_FilesAccessible() throws JsonProcessingException {
+        Response response = upload(HttpMethod.PUT, "/v1/files/%s/test_file1.txt".formatted(bucket), null, """
+                  Test1
+                """);
+
+        Assertions.assertEquals(200, response.status());
+
+        response = upload(HttpMethod.PUT, "/v1/files/%s/test_file2.txt".formatted(bucket), null, """
+                  Test2
+                """);
+
+        Assertions.assertEquals(200, response.status());
+
+        response = send(HttpMethod.PUT, "/v1/applications/%s/test_app".formatted(bucket), null, """
+                  {
+                      "displayName": "test_app",
+                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                       "property1": "test property1",
+                       "property2": "test property2",
+                       "property3": [
+                            "files/%s/test_file1.txt",
+                            "files/%s/test_file2.txt"
+                       ],
+                       "userRoles": [
+                            "Admin"
+                       ],
+                       "forwardAuthToken": true,
+                       "iconUrl": "https://mydial.somewhere.com/app-icon.svg",
+                       "description": "My application description"
+                  }
+                """.formatted(bucket, bucket));
+        Assertions.assertEquals(200, response.status());
+
+        response = operationRequest("/v1/ops/publication/create", """
+                {
+                      "name": "Publication of my application",
+                      "targetFolder": "public/folder/",
+                      "resources": [
+                        {
+                          "action": "ADD",
+                          "sourceUrl": "applications/%s/test_app",
+                          "targetUrl": "applications/public/folder/with_apps/test_app"
+                        }
+                      ],
+                      "rules": [
+                        {
+                          "source": "roles",
+                          "function": "TRUE"
+                        }
+                      ]
+                    }
+                """.formatted(bucket));
+        String correctResponse = """
+                {
+                  "url" : "publications/%s/0123",
+                  "name" : "Publication of my application",
+                  "targetFolder" : "public/folder/",
+                  "status" : "PENDING",
+                  "createdAt" : 0,
+                  "resources" : [ {
+                    "action" : "ADD",
+                    "sourceUrl" : "applications/%s/test_app",
+                    "targetUrl" : "applications/public/folder/with_apps/test_app",
+                    "reviewUrl" : "applications/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/test_app"
+                  }, {
+                    "action" : "ADD",
+                    "sourceUrl" : "files/%s/test_file1.txt",
+                    "targetUrl" : "files/public/folder/with_apps/.test_app/test_file1.txt",
+                    "reviewUrl" : "files/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/.test_app/test_file1.txt"
+                  }, {
+                    "action" : "ADD",
+                    "sourceUrl" : "files/%s/test_file2.txt",
+                    "targetUrl" : "files/public/folder/with_apps/.test_app/test_file2.txt",
+                    "reviewUrl" : "files/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/.test_app/test_file2.txt"
+                  } ],
+                  "resourceTypes" : [ "APPLICATION", "FILE" ],
+                  "rules" : [ {
+                    "function" : "TRUE",
+                    "source" : "roles",
+                    "targets" : null
+                  } ]
+                }""".formatted(bucket, bucket, bucket, bucket);
+
+        JsonNode jsonNode = objectMapper.readTree(correctResponse);
+
+        String unformattedJson = objectMapper.writeValueAsString(jsonNode);
+
+
+        verify(response,
+                200, unformattedJson);
+
+        response = operationRequest("/v1/ops/publication/approve", PUBLICATION_URL, "authorization", "admin");
+        verify(response, 200);
+
     }
 }
