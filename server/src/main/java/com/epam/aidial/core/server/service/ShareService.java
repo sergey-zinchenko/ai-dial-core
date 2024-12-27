@@ -112,7 +112,7 @@ public class ShareService {
     }
 
 
-    private void addCustomApplicationRelatedFiles(ShareResourcesRequest request) {
+    private void addCustomApplicationRelatedFiles(String bucket, ShareResourcesRequest request) {
         List<String> filesFromRequest = request.getResources().stream()
                 .map(SharedResource::url).toList();
         Config config = configStore.load();
@@ -123,6 +123,9 @@ public class ShareService {
                 Application application = applicationService.getApplication(resource).getValue();
                 List<ResourceDescriptor> files = ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService, resourceService);
                 for (ResourceDescriptor file : files) {
+                    if (file.isPublic() || !file.getBucketName().equals(bucket)) {
+                        throw new IllegalArgumentException("All files in the application %s should belong to a requester".formatted(resource.getUrl()));
+                    }
                     if (!filesFromRequest.contains(file.getUrl())) {
                         newSharedResources.add(new SharedResource(file.getUrl(), sharedResource.permissions()));
                     }
@@ -142,7 +145,7 @@ public class ShareService {
      */
     public InvitationLink initializeShare(String bucket, String location, ShareResourcesRequest request) {
         // validate resources - owner must be current user
-        addCustomApplicationRelatedFiles(request);
+        addCustomApplicationRelatedFiles(bucket, request);
         Set<SharedResource> sharedResources = request.getResources();
         if (sharedResources.isEmpty()) {
             throw new IllegalArgumentException("No resources provided");

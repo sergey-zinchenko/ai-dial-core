@@ -1734,4 +1734,71 @@ public class ShareApiTest extends ResourceBaseTest {
                   }
                 """);
     }
+
+    @Test
+    void testApplicationWithTypeSchemaPublish_Fails_PublicFile() {
+        Response response = upload(HttpMethod.PUT, "/v1/files/%s/test_file.txt".formatted(bucket), null, """
+                  Test1
+                """);
+
+        Assertions.assertEquals(200, response.status());
+
+        response = operationRequest("/v1/ops/publication/create", """
+                {
+                      "name": "Publication of my application file",
+                      "targetFolder": "public/folder/",
+                      "resources": [
+                        {
+                          "action": "ADD",
+                          "sourceUrl": "files/%s/test_file.txt",
+                          "targetUrl": "files/public/folder/test_file.txt"
+                        }
+                      ],
+                      "rules": [
+
+                      ]
+                    }
+                """.formatted(bucket));
+
+        Assertions.assertEquals(200, response.status());
+
+        response = operationRequest("/v1/ops/publication/approve", """
+            {
+              "url": "publications/%s/0123"
+            }
+            """.formatted(bucket), "authorization", "admin");
+        verify(response, 200);
+
+        response = send(HttpMethod.PUT, "/v1/applications/%s/test_app".formatted(bucket), null, """
+                  {
+                      "displayName": "test_app",
+                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                       "property1": "test property1",
+                       "property2": "test property2",
+                       "property3": [
+                            "files/public/folder/test_file.txt"
+                       ],
+                       "userRoles": [
+                            "Admin"
+                       ],
+                       "forwardAuthToken": true,
+                       "iconUrl": "https://mydial.somewhere.com/app-icon.svg",
+                       "description": "My application description"
+                  }
+                """);
+        Assertions.assertEquals(200, response.status());
+
+        // initialize share request
+        response = operationRequest("/v1/ops/resource/share/create", """
+                {
+                  "invitationType": "link",
+                  "resources": [
+                    {
+                      "url": "applications/%s/test_app"
+                    }
+                  ]
+                }
+                """.formatted(bucket));
+        verify(response, 400);
+    }
 }
