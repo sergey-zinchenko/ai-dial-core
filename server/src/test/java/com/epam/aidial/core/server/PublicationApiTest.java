@@ -1,17 +1,12 @@
 package com.epam.aidial.core.server;
 
 import com.epam.aidial.core.server.util.ProxyUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.http.HttpMethod;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class PublicationApiTest extends ResourceBaseTest {
-
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
 
     private static final String PUBLICATION_REQUEST = """
             {
@@ -1530,7 +1525,7 @@ class PublicationApiTest extends ResourceBaseTest {
     }
 
     @Test
-    void testApplicationWithTypeSchemaPublish_Ok_FilesAccessible() throws JsonProcessingException {
+    void testApplicationWithTypeSchemaPublish_Ok_FilesAccessible() {
         Response response = upload(HttpMethod.PUT, "/v1/files/%s/test_file.txt".formatted(bucket), null, """
                   Test1
                 """);
@@ -1605,7 +1600,7 @@ class PublicationApiTest extends ResourceBaseTest {
                     "targetUrl" : "files/public/folder/with_apps/.test_app/test_file_2.txt",
                     "reviewUrl" : "files/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/.test_app/test_file_2.txt"
                   } ],
-                  "resourceTypes" : [ "APPLICATION", "FILE" ],
+                  "resourceTypes" : [ "FILE", "APPLICATION" ],
                   "rules" : [ {
                     "function" : "TRUE",
                     "source" : "roles",
@@ -1613,13 +1608,9 @@ class PublicationApiTest extends ResourceBaseTest {
                   } ]
                 }""".formatted(bucket, bucket, bucket, bucket);
 
-        JsonNode jsonNode = objectMapper.readTree(correctResponse);
 
-        String unformattedJson = objectMapper.writeValueAsString(jsonNode);
-
-
-        verify(response,
-                200, unformattedJson);
+        verifyJsonNotExact(response,
+                200, correctResponse);
 
         response = operationRequest("/v1/ops/publication/approve", PUBLICATION_URL, "authorization", "admin");
         verify(response, 200);
