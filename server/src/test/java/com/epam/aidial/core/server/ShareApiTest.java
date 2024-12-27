@@ -3,6 +3,7 @@ package com.epam.aidial.core.server;
 import com.epam.aidial.core.server.data.InvitationLink;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -1447,7 +1448,7 @@ public class ShareApiTest extends ResourceBaseTest {
         verify(response, 200, CONVERSATION_BODY_1);
 
         // create prompt
-        response = send(HttpMethod.PUT, "/v1/prompts/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/folder/prompt", null,  PROMPT_BODY);
+        response = send(HttpMethod.PUT, "/v1/prompts/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/folder/prompt", null, PROMPT_BODY);
         verifyNotExact(response, 200, "\"url\":\"prompts/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/folder/prompt\"");
 
         // copy shared access
@@ -1755,7 +1756,7 @@ public class ShareApiTest extends ResourceBaseTest {
                         }
                       ],
                       "rules": [
-
+                
                       ]
                     }
                 """.formatted(bucket));
@@ -1763,10 +1764,10 @@ public class ShareApiTest extends ResourceBaseTest {
         Assertions.assertEquals(200, response.status());
 
         response = operationRequest("/v1/ops/publication/approve", """
-            {
-              "url": "publications/%s/0123"
-            }
-            """.formatted(bucket), "authorization", "admin");
+                {
+                  "url": "publications/%s/0123"
+                }
+                """.formatted(bucket), "authorization", "admin");
         verify(response, 200);
 
         response = send(HttpMethod.PUT, "/v1/applications/%s/test_app".formatted(bucket), null, """
@@ -1787,6 +1788,71 @@ public class ShareApiTest extends ResourceBaseTest {
                   }
                 """);
         Assertions.assertEquals(200, response.status());
+
+        // initialize share request
+        response = operationRequest("/v1/ops/resource/share/create", """
+                {
+                  "invitationType": "link",
+                  "resources": [
+                    {
+                      "url": "applications/%s/test_app"
+                    }
+                  ]
+                }
+                """.formatted(bucket));
+        verify(response, 400);
+    }
+
+    @Test
+    void testApplicationWithTypeSchemaPublish_Fails_SharedWithMe() {
+        Response response = send(HttpMethod.GET, "/v1/bucket", null, "", "Api-key", "proxyKey2");
+        verify(response, 200);
+        String bucket2 = new JsonObject(response.body()).getString("bucket");
+        assertNotNull(bucket2);
+
+        response = upload(HttpMethod.PUT, "/v1/files/%s/test_file.txt".formatted(bucket2), null, """
+                  Test1
+                """, "Api-key", "proxyKey2");
+
+        verify(response, 200);
+
+        response = operationRequest("/v1/ops/resource/share/create", """
+                {
+                  "invitationType": "link",
+                  "resources": [
+                    {
+                      "url": "files/%s/test_file.txt"
+                    }
+                  ]
+                }
+                """.formatted(bucket2), "Api-key", "proxyKey2");
+        verify(response, 200);
+
+        InvitationLink invitationLink = ProxyUtil.convertToObject(response.body(), InvitationLink.class);
+        assertNotNull(invitationLink);
+
+        response = send(HttpMethod.GET, invitationLink.invitationLink(), "accept=true", null);
+        verify(response, 200);
+
+
+        response = send(HttpMethod.PUT, "/v1/applications/%s/test_app".formatted(bucket), null, """
+                  {
+                      "displayName": "test_app",
+                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                       "property1": "test property1",
+                       "property2": "test property2",
+                       "property3": [
+                            "files/%s/test_file.txt"
+                       ],
+                       "userRoles": [
+                            "Admin"
+                       ],
+                       "forwardAuthToken": true,
+                       "iconUrl": "https://mydial.somewhere.com/app-icon.svg",
+                       "description": "My application description"
+                  }
+                """.formatted(bucket2));
+        verify(response, 200);
 
         // initialize share request
         response = operationRequest("/v1/ops/resource/share/create", """
