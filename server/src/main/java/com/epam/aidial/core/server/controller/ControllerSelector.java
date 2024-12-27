@@ -176,9 +176,9 @@ public class ControllerSelector {
             ApplicationTypeSchemaController controller = new ApplicationTypeSchemaController(context);
             String operation = pathMatcher.group(1);
             return switch (operation) {
-                case "/schemas" -> controller::handleListSchemas;
-                case "/meta_schema" -> controller::handleGetMetaSchema;
-                case "/schema" -> controller::handleGetSchema;
+                case "schemas" -> controller::handleListSchemas;
+                case "meta_schema" -> controller::handleGetMetaSchema;
+                case "schema" -> controller::handleGetSchema;
                 default -> null;
             };
         });
