@@ -1,13 +1,12 @@
 package com.epam.aidial.core.server;
 
-
-import java.util.concurrent.atomic.AtomicReference;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.http.HttpMethod;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ApplicationTypeSchemaApiTest extends ResourceBaseTest {
 
@@ -15,7 +14,7 @@ public class ApplicationTypeSchemaApiTest extends ResourceBaseTest {
 
     @Test
     void testApplicationTypeSchemaList_ok() {
-        Response response = send(HttpMethod.GET,"/v1/application_type_schemas/schemas",null,  null);
+        Response response = send(HttpMethod.GET, "/v1/application_type_schemas/schemas", null, null);
 
         Assertions.assertEquals(200, response.status());
         AtomicReference<JsonNode> jsonNode = new AtomicReference<>();
@@ -31,7 +30,7 @@ public class ApplicationTypeSchemaApiTest extends ResourceBaseTest {
 
     @Test
     void testApplicationTypeSchemaMetaSchema_ok() {
-        Response response = send(HttpMethod.GET,"/v1/application_type_schemas/meta_schema",null,  null);
+        Response response = send(HttpMethod.GET, "/v1/application_type_schemas/meta_schema", null, null);
 
         Assertions.assertEquals(200, response.status());
         AtomicReference<JsonNode> jsonNodeRef = new AtomicReference<>();
@@ -44,8 +43,8 @@ public class ApplicationTypeSchemaApiTest extends ResourceBaseTest {
 
     @Test
     void testApplicationTypeSchemaSchema_ok() {
-        Response response = send(HttpMethod.GET,"/v1/application_type_schemas/schema",
-                "id=https://mydial.somewhere.com/custom_application_schemas/specific_application_type",  null);
+        Response response = send(HttpMethod.GET, "/v1/application_type_schemas/schema",
+                "id=https://mydial.somewhere.com/custom_application_schemas/specific_application_type", null);
 
         Assertions.assertEquals(200, response.status());
         AtomicReference<JsonNode> jsonNodeRef = new AtomicReference<>();
