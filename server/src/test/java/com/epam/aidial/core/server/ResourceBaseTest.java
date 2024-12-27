@@ -117,7 +117,7 @@ public class ResourceBaseTest {
             redis = RedisServer.newRedisServer()
                     .port(16370)
                     .bind("127.0.0.1")
-                    //.onShutdownForceStop(true) // redis on windows does not stop gracefully. So tests takes 6h to complete otherwise.
+                    .onShutdownForceStop(true) // redis on windows does not stop gracefully. So tests takes 6h to complete otherwise.
                     .setting("maxmemory 16M")
                     .setting("maxmemory-policy volatile-lfu")
                     .build();
