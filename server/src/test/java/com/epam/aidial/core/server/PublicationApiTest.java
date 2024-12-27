@@ -1531,13 +1531,13 @@ class PublicationApiTest extends ResourceBaseTest {
 
     @Test
     void testApplicationWithTypeSchemaPublish_Ok_FilesAccessible() throws JsonProcessingException {
-        Response response = upload(HttpMethod.PUT, "/v1/files/%s/test_file1.txt".formatted(bucket), null, """
+        Response response = upload(HttpMethod.PUT, "/v1/files/%s/test_file.txt".formatted(bucket), null, """
                   Test1
                 """);
 
         Assertions.assertEquals(200, response.status());
 
-        response = upload(HttpMethod.PUT, "/v1/files/%s/test_file2.txt".formatted(bucket), null, """
+        response = upload(HttpMethod.PUT, "/v1/files/%s/xyz/test_file.txt".formatted(bucket), null, """
                   Test2
                 """);
 
@@ -1550,8 +1550,8 @@ class PublicationApiTest extends ResourceBaseTest {
                        "property1": "test property1",
                        "property2": "test property2",
                        "property3": [
-                            "files/%s/test_file1.txt",
-                            "files/%s/test_file2.txt"
+                            "files/%s/test_file.txt",
+                            "files/%s/xyz/test_file.txt"
                        ],
                        "userRoles": [
                             "Admin"
@@ -1596,14 +1596,14 @@ class PublicationApiTest extends ResourceBaseTest {
                     "reviewUrl" : "applications/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/test_app"
                   }, {
                     "action" : "ADD",
-                    "sourceUrl" : "files/%s/test_file1.txt",
-                    "targetUrl" : "files/public/folder/with_apps/.test_app/test_file1.txt",
-                    "reviewUrl" : "files/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/.test_app/test_file1.txt"
+                    "sourceUrl" : "files/%s/test_file.txt",
+                    "targetUrl" : "files/public/folder/with_apps/.test_app/test_file.txt",
+                    "reviewUrl" : "files/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/.test_app/test_file.txt"
                   }, {
                     "action" : "ADD",
-                    "sourceUrl" : "files/%s/test_file2.txt",
-                    "targetUrl" : "files/public/folder/with_apps/.test_app/test_file2.txt",
-                    "reviewUrl" : "files/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/.test_app/test_file2.txt"
+                    "sourceUrl" : "files/%s/xyz/test_file.txt",
+                    "targetUrl" : "files/public/folder/with_apps/.test_app/test_file_2.txt",
+                    "reviewUrl" : "files/2CZ9i2bcBACFts8JbBu3MdTHfU5imDZBmDVomBuDCkbhEstv1KXNzCiw693js8BLmo/with_apps/.test_app/test_file_2.txt"
                   } ],
                   "resourceTypes" : [ "APPLICATION", "FILE" ],
                   "rules" : [ {
