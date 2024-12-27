@@ -1706,16 +1706,32 @@ public class ShareApiTest extends ResourceBaseTest {
 
         verifyJsonNotExact(response, 200, """
                 {
-                   "resources" : [ {
-                     "name" : "test_app",
-                     "parentPath" : null,
-                     "bucket" : "3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST",
-                     "url" : "applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app",
-                     "nodeType" : "ITEM",
-                     "resourceType" : "APPLICATION",
-                     "permissions" : [ "READ" ]
-                   } ]
-                 }
+                    "resources" : [ {
+                      "name" : "test_app",
+                      "parentPath" : null,
+                      "bucket" : "3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST",
+                      "url" : "applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app",
+                      "nodeType" : "ITEM",
+                      "resourceType" : "APPLICATION",
+                      "permissions" : [ "READ" ]
+                    }, {
+                      "name" : "test_file2.txt",
+                      "parentPath" : null,
+                      "bucket" : "3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST",
+                      "url" : "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt",
+                      "nodeType" : "ITEM",
+                      "resourceType" : "FILE",
+                      "permissions" : [ "READ" ]
+                    }, {
+                      "name" : "test_file1.txt",
+                      "parentPath" : null,
+                      "bucket" : "3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST",
+                      "url" : "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt",
+                      "nodeType" : "ITEM",
+                      "resourceType" : "FILE",
+                      "permissions" : [ "READ" ]
+                    } ]
+                  }
                 """);
     }
 }

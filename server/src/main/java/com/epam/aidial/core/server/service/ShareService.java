@@ -142,11 +142,11 @@ public class ShareService {
      */
     public InvitationLink initializeShare(String bucket, String location, ShareResourcesRequest request) {
         // validate resources - owner must be current user
+        addCustomApplicationRelatedFiles(request);
         Set<SharedResource> sharedResources = request.getResources();
         if (sharedResources.isEmpty()) {
             throw new IllegalArgumentException("No resources provided");
         }
-        addCustomApplicationRelatedFiles(request);
         Set<String> uniqueLinks = new HashSet<>();
         List<SharedResource> normalizedResourceLinks = new ArrayList<>(sharedResources.size());
         for (SharedResource sharedResource : sharedResources) {
