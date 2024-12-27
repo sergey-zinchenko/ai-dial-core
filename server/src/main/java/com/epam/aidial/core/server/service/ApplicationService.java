@@ -422,7 +422,7 @@ public class ApplicationService {
         verifyApplication(resource);
 
         if (application.getCustomAppSchemaId() != null) {
-            if (application.getEndpoint() != null) {
+            if (application.getEndpoint() != null || application.getFunction() != null) {
                 throw new IllegalArgumentException("Endpoint must not be set for custom application");
             }
         } else if (application.getEndpoint() == null && application.getFunction() == null) {
