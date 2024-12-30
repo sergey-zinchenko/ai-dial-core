@@ -15,7 +15,7 @@ import com.epam.aidial.core.server.function.BaseRequestFunction;
 import com.epam.aidial.core.server.function.CollectRequestAttachmentsFn;
 import com.epam.aidial.core.server.function.CollectRequestDataFn;
 import com.epam.aidial.core.server.function.CollectResponseAttachmentsFn;
-import com.epam.aidial.core.server.function.enhancement.AppendCustomApplicationPropertiesFn;
+import com.epam.aidial.core.server.function.enhancement.AppendApplicationPropertiesFn;
 import com.epam.aidial.core.server.function.enhancement.ApplyDefaultDeploymentSettingsFn;
 import com.epam.aidial.core.server.function.enhancement.EnhanceAssistantRequestFn;
 import com.epam.aidial.core.server.function.enhancement.EnhanceModelRequestFn;
@@ -73,7 +73,7 @@ public class DeploymentPostController {
                 new ApplyDefaultDeploymentSettingsFn(proxy, context),
                 new EnhanceAssistantRequestFn(proxy, context),
                 new EnhanceModelRequestFn(proxy, context),
-                new AppendCustomApplicationPropertiesFn(proxy, context));
+                new AppendApplicationPropertiesFn(proxy, context));
     }
 
     public Future<?> handle(String deploymentId, String deploymentApi) {
