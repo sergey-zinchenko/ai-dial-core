@@ -12,6 +12,7 @@ import com.epam.aidial.core.config.Model;
 import com.epam.aidial.core.config.Role;
 import com.epam.aidial.core.config.Route;
 import com.epam.aidial.core.server.security.ApiKeyStore;
+import com.epam.aidial.core.server.validation.ValidationModule;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -202,6 +203,7 @@ public final class FileConfigStore implements ConfigStore {
     private JsonMapper buildJsonMapper(JsonObject settings) {
         JsonMapper mapper = JsonMapper.builder()
                 .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+                .addModule(new ValidationModule())
                 .build();
 
         boolean overwriteArrays = settings

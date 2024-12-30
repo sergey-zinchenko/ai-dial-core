@@ -1,17 +1,23 @@
 package com.epam.aidial.core.server.controller;
 
 import com.epam.aidial.core.config.Application;
+import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.data.Conversation;
 import com.epam.aidial.core.server.data.Prompt;
 import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.security.AccessService;
+import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.service.ApplicationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
+import com.epam.aidial.core.server.service.ShareService;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaProcessingException;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
+import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.epam.aidial.core.storage.data.MetadataBase;
 import com.epam.aidial.core.storage.data.ResourceItemMetadata;
 import com.epam.aidial.core.storage.http.HttpException;
@@ -23,18 +29,23 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
+import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static com.epam.aidial.core.storage.http.HttpStatus.BAD_REQUEST;
+import static com.epam.aidial.core.storage.http.HttpStatus.INTERNAL_SERVER_ERROR;
+
 @Slf4j
 @SuppressWarnings("checkstyle:Indentation")
 public class ResourceController extends AccessControlBaseController {
 
     private final Vertx vertx;
-    private final ResourceService service;
+    private final EncryptionService encryptionService;
+    private final ResourceService resourceService;
     private final ApplicationService applicationService;
     private final boolean metadata;
     private final AccessService accessService;
@@ -43,9 +54,10 @@ public class ResourceController extends AccessControlBaseController {
         // PUT and DELETE require write access, GET - read
         super(proxy, context, !HttpMethod.GET.equals(context.getRequest().method()));
         this.vertx = proxy.getVertx();
-        this.service = proxy.getResourceService();
+        this.encryptionService = proxy.getEncryptionService();
         this.applicationService = proxy.getApplicationService();
         this.accessService = proxy.getAccessService();
+        this.resourceService = proxy.getResourceService();
         this.metadata = metadata;
     }
 
@@ -86,10 +98,10 @@ public class ResourceController extends AccessControlBaseController {
                 throw new IllegalArgumentException("Limit is out of allowed range");
             }
         } catch (Throwable error) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Bad query parameters. Limit must be in [0, 1000] range. Recursive must be true/false");
+            return context.respond(BAD_REQUEST, "Bad query parameters. Limit must be in [0, 1000] range. Recursive must be true/false");
         }
 
-        vertx.executeBlocking(() -> service.getMetadata(descriptor, token, limit, recursive), false)
+        vertx.executeBlocking(() -> resourceService.getMetadata(descriptor, token, limit, recursive), false)
                 .onSuccess(result -> {
                     if (result == null) {
                         context.respond(HttpStatus.NOT_FOUND, "Not found: " + descriptor.getUrl());
@@ -111,7 +123,7 @@ public class ResourceController extends AccessControlBaseController {
 
     private Future<?> getResource(ResourceDescriptor descriptor, boolean hasWriteAccess) {
         if (descriptor.isFolder()) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
+            return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
         }
 
         EtagHeader etagHeader = ProxyUtil.etag(context.getRequest());
@@ -145,7 +157,7 @@ public class ResourceController extends AccessControlBaseController {
 
     private Future<Pair<ResourceItemMetadata, String>> getResourceData(ResourceDescriptor descriptor, EtagHeader etag) {
         return vertx.executeBlocking(() -> {
-            Pair<ResourceItemMetadata, String> result = service.getResourceWithMetadata(descriptor, etag);
+            Pair<ResourceItemMetadata, String> result = resourceService.getResourceWithMetadata(descriptor, etag);
 
             if (result == null) {
                 throw new ResourceNotFoundException();
@@ -155,17 +167,33 @@ public class ResourceController extends AccessControlBaseController {
         }, false);
     }
 
+    private void validateCustomApplication(Application application) {
+        try {
+            Config config = context.getConfig();
+            List<ResourceDescriptor> files = ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService,
+                    resourceService);
+            files.stream().filter(resource -> !(accessService.hasReadAccess(resource, context)))
+                    .findAny().ifPresent(file -> {
+                        throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
+                    });
+        } catch (ValidationException | IllegalArgumentException | ApplicationTypeSchemaValidationException e) {
+            throw new HttpException(BAD_REQUEST, " Custom application validation failed", e);
+        } catch (ApplicationTypeSchemaProcessingException e) {
+            throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application processing exception", e);
+        }
+    }
+
     private Future<?> putResource(ResourceDescriptor descriptor) {
         if (descriptor.isFolder()) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
+            return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
         }
 
         if (!ResourceDescriptorFactory.isValidResourcePath(descriptor)) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Resource name and/or parent folders must not end with .(dot)");
+            return context.respond(BAD_REQUEST, "Resource name and/or parent folders must not end with .(dot)");
         }
 
         int contentLength = ProxyUtil.contentLength(context.getRequest(), 0);
-        int contentLimit = service.getMaxSize();
+        int contentLimit = resourceService.getMaxSize();
 
         if (contentLength > contentLimit) {
             String message = "Resource size: %s exceeds max limit: %s".formatted(contentLength, contentLimit);
@@ -187,17 +215,20 @@ public class ResourceController extends AccessControlBaseController {
         Future<ResourceItemMetadata> responseFuture;
 
         if (descriptor.getType() == ResourceTypes.APPLICATION) {
-            responseFuture =  requestFuture.compose(pair -> {
+            responseFuture = requestFuture.compose(pair -> {
                 EtagHeader etag = pair.getKey();
                 Application application = ProxyUtil.convertToObject(pair.getValue(), Application.class);
-                return vertx.executeBlocking(() -> applicationService.putApplication(descriptor, etag, application).getKey(), false);
+                return vertx.executeBlocking(() -> {
+                    validateCustomApplication(application);
+                    return applicationService.putApplication(descriptor, etag, application).getKey();
+                }, false);
             });
         } else {
-           responseFuture =  requestFuture.compose(pair -> {
+            responseFuture = requestFuture.compose(pair -> {
                 EtagHeader etag = pair.getKey();
                 String body = pair.getValue();
                 validateRequestBody(descriptor, body);
-                return vertx.executeBlocking(() -> service.putResource(descriptor, body, etag), false);
+                return vertx.executeBlocking(() -> resourceService.putResource(descriptor, body, etag), false);
             });
         }
 
@@ -213,7 +244,7 @@ public class ResourceController extends AccessControlBaseController {
 
     private Future<?> deleteResource(ResourceDescriptor descriptor) {
         if (descriptor.isFolder()) {
-            return context.respond(HttpStatus.BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
+            return context.respond(BAD_REQUEST, "Folder not allowed: " + descriptor.getUrl());
         }
 
         EtagHeader etag = ProxyUtil.etag(context.getRequest());
@@ -235,7 +266,7 @@ public class ResourceController extends AccessControlBaseController {
         if (error instanceof HttpException exception) {
             context.respond(exception);
         } else if (error instanceof IllegalArgumentException) {
-            context.respond(HttpStatus.BAD_REQUEST, error.getMessage());
+            context.respond(BAD_REQUEST, error.getMessage());
         } else if (error instanceof ResourceNotFoundException) {
             context.respond(HttpStatus.NOT_FOUND, "Not found: " + descriptor.getUrl());
         } else if (error instanceof PermissionDeniedException) {

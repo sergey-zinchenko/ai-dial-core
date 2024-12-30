@@ -9,6 +9,7 @@ import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.data.SharedResourcesResponse;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.BucketBuilder;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
@@ -42,6 +43,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
 
 @Slf4j
 public class ApplicationService {
@@ -111,7 +113,7 @@ public class ApplicationService {
         String bucket = encryptionService.encrypt(location);
 
         ResourceDescriptor folder = ResourceDescriptorFactory.fromDecoded(ResourceTypes.APPLICATION, bucket, location, null);
-        return getApplications(folder);
+        return getApplications(folder, context);
     }
 
     public List<Application> getSharedApplications(ProxyContext context) {
@@ -131,9 +133,11 @@ public class ApplicationService {
             ResourceDescriptor resource = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
 
             if (meta instanceof ResourceItemMetadata) {
-                list.add(getApplication(resource).getValue());
+                Application application = getApplication(resource).getValue();
+                application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
+                list.add(application);
             } else {
-                list.addAll(getApplications(resource));
+                list.addAll(getApplications(resource, context));
             }
         }
 
@@ -143,7 +147,7 @@ public class ApplicationService {
     public List<Application> getPublicApplications(ProxyContext context) {
         ResourceDescriptor folder = ResourceDescriptorFactory.fromDecoded(ResourceTypes.APPLICATION, ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PUBLIC_LOCATION, null);
         AccessService accessService = context.getProxy().getAccessService();
-        return getApplications(folder, page -> accessService.filterForbidden(context, folder, page));
+        return getApplications(folder, page -> accessService.filterForbidden(context, folder, page), context);
     }
 
     public Pair<ResourceItemMetadata, Application> getApplication(ResourceDescriptor resource) {
@@ -168,13 +172,14 @@ public class ApplicationService {
         return Pair.of(meta, application);
     }
 
-    public List<Application> getApplications(ResourceDescriptor resource) {
+    public List<Application> getApplications(ResourceDescriptor resource, ProxyContext ctx) {
         Consumer<ResourceFolderMetadata> noop = ignore -> {
         };
-        return getApplications(resource, noop);
+        return getApplications(resource, noop, ctx);
     }
 
-    public List<Application> getApplications(ResourceDescriptor resource, Consumer<ResourceFolderMetadata> filter) {
+    public List<Application> getApplications(ResourceDescriptor resource,
+                                             Consumer<ResourceFolderMetadata> filter, ProxyContext ctx) {
         if (!resource.isFolder() || resource.getType() != ResourceTypes.APPLICATION) {
             throw new IllegalArgumentException("Invalid application folder: " + resource.getUrl());
         }
@@ -195,6 +200,7 @@ public class ApplicationService {
                     try {
                         ResourceDescriptor item = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
                         Application application = getApplication(item).getValue();
+                        application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
                         applications.add(application);
                     } catch (ResourceNotFoundException ignore) {
                         // deleted while fetching
@@ -229,7 +235,6 @@ public class ApplicationService {
                     if (isPublicOrReview(resource) && !function.getSourceFolder().equals(existing.getFunction().getSourceFolder())) {
                         throw new HttpException(HttpStatus.CONFLICT, "The application function source folder cannot be updated in public/review bucket");
                     }
-
                     application.setEndpoint(existing.getEndpoint());
                     application.getFeatures().setRateEndpoint(existing.getFeatures().getRateEndpoint());
                     application.getFeatures().setTokenizeEndpoint(existing.getFeatures().getTokenizeEndpoint());
@@ -307,7 +312,6 @@ public class ApplicationService {
                     if (isPublicOrReview) {
                         throw new HttpException(HttpStatus.CONFLICT, "The application function must be deleted in public/review bucket");
                     }
-
                     application.setEndpoint(existing.getEndpoint());
                     application.getFeatures().setRateEndpoint(existing.getFeatures().getRateEndpoint());
                     application.getFeatures().setTokenizeEndpoint(existing.getFeatures().getTokenizeEndpoint());
@@ -417,7 +421,11 @@ public class ApplicationService {
     private void prepareApplication(ResourceDescriptor resource, Application application) {
         verifyApplication(resource);
 
-        if (application.getEndpoint() == null && application.getFunction() == null) {
+        if (application.getCustomAppSchemaId() != null) {
+            if (application.getEndpoint() != null || application.getFunction() != null) {
+                throw new IllegalArgumentException("Endpoint must not be set for custom application");
+            }
+        } else if (application.getEndpoint() == null && application.getFunction() == null) {
             throw new IllegalArgumentException("Application endpoint or function must be provided");
         }
 
@@ -613,8 +621,8 @@ public class ApplicationService {
 
     private String encodeTargetFolder(ResourceDescriptor resource, String id) {
         String location = resource.getBucketLocation()
-                          + DEPLOYMENTS_NAME + ResourceDescriptor.PATH_SEPARATOR
-                          + id + ResourceDescriptor.PATH_SEPARATOR;
+                + DEPLOYMENTS_NAME + ResourceDescriptor.PATH_SEPARATOR
+                + id + ResourceDescriptor.PATH_SEPARATOR;
 
         String name = encryptionService.encrypt(location);
         return ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE, name, location, null).getUrl();

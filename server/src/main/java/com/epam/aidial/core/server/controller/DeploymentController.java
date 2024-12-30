@@ -1,5 +1,6 @@
 package com.epam.aidial.core.server.controller;
 
+import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.config.Features;
@@ -12,6 +13,7 @@ import com.epam.aidial.core.server.data.ListData;
 import com.epam.aidial.core.server.data.ResourceTypes;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
 import com.epam.aidial.core.storage.http.HttpStatus;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
@@ -62,18 +64,39 @@ public class DeploymentController {
         return context.respond(HttpStatus.OK, list);
     }
 
-    public static Future<Deployment> selectDeployment(ProxyContext context, String id) {
+    public static Future<Deployment> selectDeployment(ProxyContext context, String id, boolean filterCustomProperties, boolean modifyEndpoint) {
         Deployment deployment = context.getConfig().selectDeployment(id);
-
+        Proxy proxy = context.getProxy();
         if (deployment != null) {
             if (!deployment.hasAccess(context.getUserRoles())) {
                 return Future.failedFuture(new PermissionDeniedException("Forbidden deployment: " + id));
             } else {
-                return Future.succeededFuture(deployment);
+                try {
+                    if (deployment instanceof Application application) {
+                        if (!modifyEndpoint && !filterCustomProperties) {
+                            return Future.succeededFuture(deployment);
+                        }
+                        return proxy.getVertx().executeBlocking(() -> {
+                            if (application.getCustomAppSchemaId() == null) {
+                                return application;
+                            }
+                            Application modifiedApp = application;
+                            if (filterCustomProperties) {
+                                modifiedApp = ApplicationTypeSchemaUtils.filterCustomClientProperties(context.getConfig(), application);
+                            }
+                            if (modifyEndpoint) {
+                                modifiedApp = ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(context.getConfig(), modifiedApp);
+                            }
+                            return modifiedApp;
+                        }, false);
+                    }
+                    return Future.succeededFuture(deployment);
+                } catch (Throwable e) {
+                    return Future.failedFuture(e);
+                }
             }
         }
 
-        Proxy proxy = context.getProxy();
         return proxy.getVertx().executeBlocking(() -> {
             String url;
             ResourceDescriptor resource;
@@ -93,7 +116,18 @@ public class DeploymentController {
                 throw new PermissionDeniedException();
             }
 
-            return proxy.getApplicationService().getApplication(resource).getValue();
+            Application app = proxy.getApplicationService().getApplication(resource).getValue();
+
+            if (app.getCustomAppSchemaId() != null) {
+                if (filterCustomProperties) {
+                    app = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
+                }
+                if (modifyEndpoint) {
+                    app = ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(context.getConfig(), app);
+                }
+            }
+
+            return app;
         }, false);
     }
 

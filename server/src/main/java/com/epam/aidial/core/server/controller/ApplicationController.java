@@ -2,8 +2,8 @@ package com.epam.aidial.core.server.controller;
 
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
+import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
-import com.epam.aidial.core.server.data.ApplicationData;
 import com.epam.aidial.core.server.data.ListData;
 import com.epam.aidial.core.server.data.ResourceLink;
 import com.epam.aidial.core.server.data.ResourceTypes;
@@ -12,6 +12,7 @@ import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.service.ApplicationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.BucketBuilder;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
@@ -43,12 +44,11 @@ public class ApplicationController {
     }
 
     public Future<?> getApplication(String applicationId) {
-        DeploymentController.selectDeployment(context, applicationId)
+        DeploymentController.selectDeployment(context, applicationId, true, true)
                 .map(deployment -> {
                     if (deployment instanceof Application application) {
                         return application;
                     }
-
                     throw new ResourceNotFoundException("Application is not found: " + applicationId);
                 })
                 .map(ApplicationUtil::mapApplication)
@@ -60,29 +60,22 @@ public class ApplicationController {
 
     public Future<?> getApplications() {
         Config config = context.getConfig();
-        List<ApplicationData> list = new ArrayList<>();
+        Proxy proxy = context.getProxy();
 
-        for (Application application : config.getApplications().values()) {
-            if (application.hasAccess(context.getUserRoles())) {
-                ApplicationData data = ApplicationUtil.mapApplication(application);
-                list.add(data);
+        return proxy.getVertx().executeBlocking(() -> {
+            List<Application> list = new ArrayList<>();
+            for (Application application : config.getApplications().values()) {
+                if (application.hasAccess(context.getUserRoles())) {
+                    application = ApplicationTypeSchemaUtils.filterCustomClientProperties(config, application);
+                    list.add(application);
+                }
             }
-        }
-
-        Future<List<ApplicationData>> future = Future.succeededFuture(list);
-
-        if (applicationService.isIncludeCustomApps()) {
-            future = vertx.executeBlocking(() -> applicationService.getAllApplications(context), false)
-                    .map(apps -> {
-                        apps.forEach(app -> list.add(ApplicationUtil.mapApplication(app)));
-                        return list;
-                    });
-        }
-
-        future.onSuccess(apps -> context.respond(HttpStatus.OK, new ListData<>(apps)))
+            if (applicationService.isIncludeCustomApps()) {
+                list.addAll(applicationService.getAllApplications(context));
+            }
+            return list.stream().map(ApplicationUtil::mapApplication).toList();
+        }).onSuccess(apps -> context.respond(HttpStatus.OK, new ListData<>(apps)))
                 .onFailure(this::respondError);
-
-        return Future.succeededFuture();
     }
 
     public Future<?> deployApplication() {

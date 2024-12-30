@@ -4,6 +4,7 @@ import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.server.data.InvitationLink;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import io.vertx.core.http.HttpMethod;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -937,5 +938,60 @@ public class CustomApplicationApiTest extends ResourceBaseTest {
         // verify app1 no longer exists
         response = send(HttpMethod.GET, "/v1/applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/my-custom-application1", null, "");
         verify(response, 404);
+    }
+
+    @Test
+    void testApplicationWithTypeSchemaCreation_Ok_FilesAccessible() {
+        Response response = upload(HttpMethod.PUT, "/v1/files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt", null, """
+                  Test1
+                """);
+
+        Assertions.assertEquals(200, response.status());
+
+        response = upload(HttpMethod.PUT, "/v1/files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt", null, """
+                  Test2
+                """);
+
+        Assertions.assertEquals(200, response.status());
+
+        response = send(HttpMethod.PUT, "/v1/applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app_files", null, """
+                  {
+                      "displayName": "test_app",
+                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                       "property1": "test property1",
+                       "property2": "test property2",
+                       "property3": [
+                            "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt",
+                            "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt"
+                       ],
+                       "userRoles": [
+                            "Admin"
+                       ],
+                       "forwardAuthToken": true,
+                       "iconUrl": "https://mydial.somewhere.com/app-icon.svg",
+                       "description": "My application description"
+                  }
+                """);
+        Assertions.assertEquals(200, response.status());
+
+        response = send(HttpMethod.GET, "/v1/applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app_files", null, "");
+        verifyJsonNotExact(response, 200, """
+                {
+                  "name" : "applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app_files",
+                  "display_name" : "test_app",
+                  "icon_url" : "https://mydial.somewhere.com/app-icon.svg",
+                  "description" : "My application description",
+                  "reference": "@ignore",
+                  "forward_auth_token" : false,
+                  "defaults" : { },
+                  "interceptors" : [ ],
+                  "description_keywords" : [ ],
+                  "max_retry_attempts" : 1,
+                  "custom_app_schema_id" : "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                  "property2" : "test property2",
+                  "property1" : "test property1",
+                  "property3" : [ "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt", "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt" ]
+                }
+                """);
     }
 }

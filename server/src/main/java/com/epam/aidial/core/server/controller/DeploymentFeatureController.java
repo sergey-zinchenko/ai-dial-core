@@ -35,7 +35,7 @@ public class DeploymentFeatureController {
 
     public Future<?> handle(String deploymentId, Function<Deployment, String> endpointGetter, boolean requireEndpoint) {
         // make sure request.body() called before request.resume()
-        return DeploymentController.selectDeployment(context, deploymentId).map(dep -> {
+        return DeploymentController.selectDeployment(context, deploymentId, false, true).map(dep -> {
             String endpoint = endpointGetter.apply(dep);
             context.setDeployment(dep);
             context.getRequest().body()

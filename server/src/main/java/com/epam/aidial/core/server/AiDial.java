@@ -120,20 +120,20 @@ public class AiDial {
             ResourceService.Settings resourceServiceSettings = Json.decodeValue(settings("resources").toBuffer(), ResourceService.Settings.class);
             resourceService = new ResourceService(timerService, redis, storage, lockService, resourceServiceSettings, storage.getPrefix());
             InvitationService invitationService = new InvitationService(resourceService, encryptionService, settings("invitations"));
-            ShareService shareService = new ShareService(resourceService, invitationService, encryptionService);
+            ApiKeyStore apiKeyStore = new ApiKeyStore(resourceService, vertx);
+            ConfigStore configStore = new FileConfigStore(vertx, settings("config"), apiKeyStore);
+            ApplicationService applicationService = new ApplicationService(vertx, client, redis,
+                    encryptionService, resourceService, lockService, generator, settings("applications"));
+            ShareService shareService = new ShareService(resourceService, invitationService, encryptionService, applicationService, configStore);
             RuleService ruleService = new RuleService(resourceService);
             AccessService accessService = new AccessService(encryptionService, shareService, ruleService, settings("access"));
             NotificationService notificationService = new NotificationService(resourceService, encryptionService);
-            ApplicationService applicationService = new ApplicationService(vertx, client, redis,
-                    encryptionService, resourceService, lockService, generator, settings("applications"));
             ResourceOperationService resourceOperationService = new ResourceOperationService(applicationService,
                     resourceService, invitationService, shareService, lockService);
             PublicationService publicationService = new PublicationService(encryptionService, resourceService, accessService,
                     ruleService, notificationService, applicationService, resourceOperationService, generator, clock);
             RateLimiter rateLimiter = new RateLimiter(vertx, resourceService);
 
-            ApiKeyStore apiKeyStore = new ApiKeyStore(resourceService, vertx);
-            ConfigStore configStore = new FileConfigStore(vertx, settings("config"), apiKeyStore);
 
             TokenStatsTracker tokenStatsTracker = new TokenStatsTracker(vertx, resourceService);
 

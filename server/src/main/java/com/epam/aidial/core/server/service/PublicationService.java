@@ -12,6 +12,7 @@ import com.epam.aidial.core.server.data.ResourceUrl;
 import com.epam.aidial.core.server.data.Rule;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.BucketBuilder;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
@@ -27,7 +28,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.mutable.MutableObject;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,7 +38,10 @@ import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
+
+import static com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils.replaceCustomAppFiles;
 
 @RequiredArgsConstructor
 public class PublicationService {
@@ -344,6 +347,8 @@ public class PublicationService {
         publication.setCreatedAt(clock.getAsLong());
         publication.setStatus(Publication.Status.PENDING);
 
+        addCustomApplicationRelatedFiles(context, publication);
+
         Set<String> urls = new HashSet<>();
         for (Publication.Resource resource : publication.getResources()) {
             Publication.ResourceAction action = resource.getAction();
@@ -371,6 +376,70 @@ public class PublicationService {
         }
 
         validateRules(publication);
+    }
+
+    /**
+     * Builds the target folder path for custom application files.
+     *
+     * @param resource the publication resource containing the target URL
+     * @return the constructed target folder path for custom application files
+     */
+    private static String buildTargetFolderForCustomAppFiles(Publication.Resource resource) {
+        String targetUrl = resource.getTargetUrl();
+        // Find the index of the end of a bucket segment (the second slash in the target URL)
+        int indexOfBucketEndSlash = targetUrl.indexOf(ResourceDescriptor.PATH_SEPARATOR, targetUrl.indexOf(ResourceDescriptor.PATH_SEPARATOR) + 1);
+        // Find the index of the start of a file name (the last slash in the target URL)
+        int indexOfFileNameStartSlash = targetUrl.lastIndexOf(ResourceDescriptor.PATH_SEPARATOR);
+        // Extract the application path from the target URL
+        String appPath = targetUrl.substring(indexOfBucketEndSlash + 1, indexOfFileNameStartSlash);
+        // Extract the application name from the target URL
+        String appName = targetUrl.substring(indexOfFileNameStartSlash + 1);
+        // Construct and return the target folder path
+        return appPath + ResourceDescriptor.PATH_SEPARATOR + "." + appName + ResourceDescriptor.PATH_SEPARATOR;
+    }
+
+    private void addCustomApplicationRelatedFiles(ProxyContext context, Publication publication) {
+        List<String> existingUrls = publication.getResources().stream()
+                .map(Publication.Resource::getSourceUrl)
+                .toList();
+
+        Map<String, Integer> fileNameCounter = new HashMap<>();
+
+        List<Publication.Resource> linkedResourcesToPublish = publication.getResources().stream()
+                .filter(resource -> resource.getAction() != Publication.ResourceAction.DELETE)
+                .flatMap(resource -> {
+                    ResourceDescriptor source = ResourceDescriptorFactory.fromAnyUrl(resource.getSourceUrl(), encryption);
+                    if (source.getType() != ResourceTypes.APPLICATION) {
+                        return Stream.empty();
+                    }
+                    Application application = applicationService.getApplication(source).getValue();
+                    if (application.getCustomAppSchemaId() == null) {
+                        return Stream.empty();
+                    }
+                    String targetFolder = buildTargetFolderForCustomAppFiles(resource);
+                    return ApplicationTypeSchemaUtils.getFiles(context.getConfig(), application, encryption, resourceService)
+                            .stream()
+                            .filter(sourceDescriptor -> !existingUrls.contains(sourceDescriptor.getUrl()) && !sourceDescriptor.isPublic())
+                            .map(sourceDescriptor -> {
+                                String fileName = sourceDescriptor.getName();
+                                int count = fileNameCounter.getOrDefault(fileName, 0) + 1;
+                                fileNameCounter.put(fileName, count);
+
+                                if (count > 1) {
+                                    fileName = fileName.replaceFirst("(\\.[^.]+)$", "_" + count + "$1");
+                                }
+
+                                return new Publication.Resource()
+                                        .setAction(resource.getAction())
+                                        .setSourceUrl(sourceDescriptor.getUrl())
+                                        .setTargetUrl(ResourceDescriptorFactory.fromDecoded(ResourceTypes.FILE,
+                                                ResourceDescriptor.PUBLIC_BUCKET, ResourceDescriptor.PATH_SEPARATOR,
+                                                targetFolder + fileName).getUrl());
+                            });
+                })
+                .toList();
+
+        publication.getResources().addAll(linkedResourcesToPublish);
     }
 
     private void validateResourceForAddition(ProxyContext context, Publication.Resource resource, String targetFolder,
@@ -540,6 +609,7 @@ public class PublicationService {
 
             if (from.getType() == ResourceTypes.APPLICATION) {
                 applicationService.copyApplication(from, to, false, app -> {
+                    replaceCustomAppFiles(app, replacementLinks);
                     app.setReference(ApplicationUtil.generateReference());
                     app.setIconUrl(replaceLink(replacementLinks, app.getIconUrl()));
                 });
@@ -552,6 +622,7 @@ public class PublicationService {
             }
         }
     }
+
 
     private void copyReviewToTargetResources(List<Publication.Resource> resources) {
         Map<String, String> replacementLinks = new HashMap<>();
@@ -580,6 +651,7 @@ public class PublicationService {
 
             if (from.getType() == ResourceTypes.APPLICATION) {
                 applicationService.copyApplication(from, to, false, app -> {
+                    replaceCustomAppFiles(app, replacementLinks);
                     app.setReference(ApplicationUtil.generateReference());
                     app.setIconUrl(replaceLink(replacementLinks, app.getIconUrl()));
                 });

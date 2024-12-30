@@ -21,7 +21,7 @@ public class LimitController {
     }
 
     public Future<?> getLimits(String deploymentId) {
-        DeploymentController.selectDeployment(context, deploymentId)
+        DeploymentController.selectDeployment(context, deploymentId, false, true)
                 .compose(dep -> proxy.getRateLimiter().getLimitStats(dep, context))
                 .onSuccess(limitStats -> {
                     if (limitStats == null) {

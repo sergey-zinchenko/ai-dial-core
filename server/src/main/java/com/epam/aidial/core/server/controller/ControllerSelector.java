@@ -11,7 +11,6 @@ import io.vertx.core.http.impl.HttpServerRequestInternal;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -74,6 +73,8 @@ public class ControllerSelector {
     private static final Pattern NOTIFICATIONS = Pattern.compile("^/v1/ops/notification/(list|delete)$");
 
     private static final Pattern USER_INFO = Pattern.compile("^/v1/user/info$");
+
+    private static final Pattern APP_SCHEMAS = Pattern.compile("^/v1/application_type_schemas/(schemas|schema|meta_schema)?");
 
     static {
         // GET routes
@@ -171,6 +172,17 @@ public class ControllerSelector {
             return () -> controller.handle(deploymentId, getter, false);
         });
         get(USER_INFO, (proxy, context, pathMatcher) -> new UserInfoController(context));
+        get(APP_SCHEMAS, (proxy, context, pathMatcher) -> {
+            ApplicationTypeSchemaController controller = new ApplicationTypeSchemaController(context);
+            String operation = pathMatcher.group(1);
+            return switch (operation) {
+                case "schemas" -> controller::handleListSchemas;
+                case "meta_schema" -> controller::handleGetMetaSchema;
+                case "schema" -> controller::handleGetSchema;
+                default -> null;
+            };
+        });
+
         // POST routes
         post(PATTERN_POST_DEPLOYMENT, (proxy, context, pathMatcher) -> {
             String deploymentId = UrlUtil.decodePath(pathMatcher.group(1));

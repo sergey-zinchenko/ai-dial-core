@@ -1,4 +1,4 @@
-FROM gradle:8.2.0-jdk17-alpine as builder
+FROM gradle:8.2.0-jdk17-alpine AS builder
 
 #COPY --from=cache /cache /home/gradle/.gradle
 COPY --chown=gradle:gradle . /home/gradle/src

@@ -1,6 +1,9 @@
 package com.epam.aidial.core.config;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -8,7 +11,9 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
+import java.net.URI;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 @Data
@@ -19,6 +24,22 @@ import java.util.Map;
 public class Application extends Deployment {
 
     private Function function;
+
+    @JsonIgnore
+    private Map<String, Object> customProperties = new HashMap<>(); //all custom application properties will land there
+
+    @JsonAnySetter
+    public void setCustomProperty(String key, Object value) { //all custom application properties will land there
+        customProperties.put(key, value);
+    }
+
+    @JsonAnyGetter
+    public  Map<String, Object> getCustomProperties() {
+        return customProperties;
+    }
+
+    @JsonAlias({"customAppSchemaId", "custom_app_schema_id"})
+    private URI customAppSchemaId;
 
     @Data
     @Accessors(chain = true)
@@ -90,5 +111,31 @@ public class Application extends Deployment {
     public static class Log {
         private String instance;
         private String content;
+    }
+
+    public Application() {
+        super();
+    }
+
+    public Application(Application source) {
+        super();
+        this.setName(source.getName());
+        this.setEndpoint(source.getEndpoint());
+        this.setDisplayName(source.getDisplayName());
+        this.setDisplayVersion(source.getDisplayVersion());
+        this.setIconUrl(source.getIconUrl());
+        this.setDescription(source.getDescription());
+        this.setReference(source.getReference());
+        this.setUserRoles(source.getUserRoles());
+        this.setForwardAuthToken(source.isForwardAuthToken());
+        this.setFeatures(source.getFeatures());
+        this.setInputAttachmentTypes(source.getInputAttachmentTypes());
+        this.setMaxInputAttachments(source.getMaxInputAttachments());
+        this.setDefaults(source.getDefaults());
+        this.setInterceptors(source.getInterceptors());
+        this.setDescriptionKeywords(source.getDescriptionKeywords());
+        this.setFunction(source.getFunction());
+        this.setCustomProperties(source.getCustomProperties());
+        this.setCustomAppSchemaId(source.getCustomAppSchemaId());
     }
 }

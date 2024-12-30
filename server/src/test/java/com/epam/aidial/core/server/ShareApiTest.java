@@ -3,6 +3,8 @@ package com.epam.aidial.core.server;
 import com.epam.aidial.core.server.data.InvitationLink;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonObject;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -1446,7 +1448,7 @@ public class ShareApiTest extends ResourceBaseTest {
         verify(response, 200, CONVERSATION_BODY_1);
 
         // create prompt
-        response = send(HttpMethod.PUT, "/v1/prompts/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/folder/prompt", null,  PROMPT_BODY);
+        response = send(HttpMethod.PUT, "/v1/prompts/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/folder/prompt", null, PROMPT_BODY);
         verifyNotExact(response, 200, "\"url\":\"prompts/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/folder/prompt\"");
 
         // copy shared access
@@ -1642,5 +1644,227 @@ public class ShareApiTest extends ResourceBaseTest {
         verify(response, 200);
         InvitationLink invitationLink = ProxyUtil.convertToObject(response.body(), InvitationLink.class);
         assertNotNull(invitationLink);
+    }
+
+    @Test
+    void testApplicationWithTypeSchemaPublish_Ok_FilesAccessible() {
+        Response response = upload(HttpMethod.PUT, "/v1/files/%s/test_file1.txt".formatted(bucket), null, """
+                  Test1
+                """);
+
+        Assertions.assertEquals(200, response.status());
+
+        response = upload(HttpMethod.PUT, "/v1/files/%s/test_file2.txt".formatted(bucket), null, """
+                  Test2
+                """);
+
+        Assertions.assertEquals(200, response.status());
+
+        response = send(HttpMethod.PUT, "/v1/applications/%s/test_app".formatted(bucket), null, """
+                  {
+                      "displayName": "test_app",
+                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                       "property1": "test property1",
+                       "property2": "test property2",
+                       "property3": [
+                            "files/%s/test_file1.txt",
+                            "files/%s/test_file2.txt"
+                       ],
+                       "userRoles": [
+                            "Admin"
+                       ],
+                       "forwardAuthToken": true,
+                       "iconUrl": "https://mydial.somewhere.com/app-icon.svg",
+                       "description": "My application description"
+                  }
+                """.formatted(bucket, bucket));
+        Assertions.assertEquals(200, response.status());
+
+        // initialize share request
+        response = operationRequest("/v1/ops/resource/share/create", """
+                {
+                  "invitationType": "link",
+                  "resources": [
+                    {
+                      "url": "applications/%s/test_app"
+                    }
+                  ]
+                }
+                """.formatted(bucket));
+        verify(response, 200);
+        InvitationLink invitationLink = ProxyUtil.convertToObject(response.body(), InvitationLink.class);
+        assertNotNull(invitationLink);
+
+        response = send(HttpMethod.GET, invitationLink.invitationLink(), "accept=true", null, "Api-key", "proxyKey2");
+        verify(response, 200);
+
+        response = operationRequest("/v1/ops/resource/share/list", """
+                {
+                  "resourceTypes": ["APPLICATION", "FILE"],
+                  "with": "others"
+                }
+                """);
+
+        verifyJsonNotExact(response, 200, """
+                {
+                    "resources" : [ {
+                      "name" : "test_app",
+                      "parentPath" : null,
+                      "bucket" : "3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST",
+                      "url" : "applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app",
+                      "nodeType" : "ITEM",
+                      "resourceType" : "APPLICATION",
+                      "permissions" : [ "READ" ]
+                    }, {
+                      "name" : "test_file2.txt",
+                      "parentPath" : null,
+                      "bucket" : "3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST",
+                      "url" : "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt",
+                      "nodeType" : "ITEM",
+                      "resourceType" : "FILE",
+                      "permissions" : [ "READ" ]
+                    }, {
+                      "name" : "test_file1.txt",
+                      "parentPath" : null,
+                      "bucket" : "3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST",
+                      "url" : "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt",
+                      "nodeType" : "ITEM",
+                      "resourceType" : "FILE",
+                      "permissions" : [ "READ" ]
+                    } ]
+                  }
+                """);
+    }
+
+    @Test
+    void testApplicationWithTypeSchemaPublish_Fails_PublicFile() {
+        Response response = upload(HttpMethod.PUT, "/v1/files/%s/test_file.txt".formatted(bucket), null, """
+                  Test1
+                """);
+
+        Assertions.assertEquals(200, response.status());
+
+        response = operationRequest("/v1/ops/publication/create", """
+                {
+                      "name": "Publication of my application file",
+                      "targetFolder": "public/folder/",
+                      "resources": [
+                        {
+                          "action": "ADD",
+                          "sourceUrl": "files/%s/test_file.txt",
+                          "targetUrl": "files/public/folder/test_file.txt"
+                        }
+                      ],
+                      "rules": [
+                
+                      ]
+                    }
+                """.formatted(bucket));
+
+        Assertions.assertEquals(200, response.status());
+
+        response = operationRequest("/v1/ops/publication/approve", """
+                {
+                  "url": "publications/%s/0123"
+                }
+                """.formatted(bucket), "authorization", "admin");
+        verify(response, 200);
+
+        response = send(HttpMethod.PUT, "/v1/applications/%s/test_app".formatted(bucket), null, """
+                  {
+                      "displayName": "test_app",
+                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                       "property1": "test property1",
+                       "property2": "test property2",
+                       "property3": [
+                            "files/public/folder/test_file.txt"
+                       ],
+                       "userRoles": [
+                            "Admin"
+                       ],
+                       "forwardAuthToken": true,
+                       "iconUrl": "https://mydial.somewhere.com/app-icon.svg",
+                       "description": "My application description"
+                  }
+                """);
+        Assertions.assertEquals(200, response.status());
+
+        // initialize share request
+        response = operationRequest("/v1/ops/resource/share/create", """
+                {
+                  "invitationType": "link",
+                  "resources": [
+                    {
+                      "url": "applications/%s/test_app"
+                    }
+                  ]
+                }
+                """.formatted(bucket));
+        verify(response, 400);
+    }
+
+    @Test
+    void testApplicationWithTypeSchemaPublish_Fails_SharedWithMe() {
+        Response response = send(HttpMethod.GET, "/v1/bucket", null, "", "Api-key", "proxyKey2");
+        verify(response, 200);
+        String bucket2 = new JsonObject(response.body()).getString("bucket");
+        assertNotNull(bucket2);
+
+        response = upload(HttpMethod.PUT, "/v1/files/%s/test_file.txt".formatted(bucket2), null, """
+                  Test1
+                """, "Api-key", "proxyKey2");
+
+        verify(response, 200);
+
+        response = operationRequest("/v1/ops/resource/share/create", """
+                {
+                  "invitationType": "link",
+                  "resources": [
+                    {
+                      "url": "files/%s/test_file.txt"
+                    }
+                  ]
+                }
+                """.formatted(bucket2), "Api-key", "proxyKey2");
+        verify(response, 200);
+
+        InvitationLink invitationLink = ProxyUtil.convertToObject(response.body(), InvitationLink.class);
+        assertNotNull(invitationLink);
+
+        response = send(HttpMethod.GET, invitationLink.invitationLink(), "accept=true", null);
+        verify(response, 200);
+
+
+        response = send(HttpMethod.PUT, "/v1/applications/%s/test_app".formatted(bucket), null, """
+                  {
+                      "displayName": "test_app",
+                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                       "property1": "test property1",
+                       "property2": "test property2",
+                       "property3": [
+                            "files/%s/test_file.txt"
+                       ],
+                       "userRoles": [
+                            "Admin"
+                       ],
+                       "forwardAuthToken": true,
+                       "iconUrl": "https://mydial.somewhere.com/app-icon.svg",
+                       "description": "My application description"
+                  }
+                """.formatted(bucket2));
+        verify(response, 200);
+
+        // initialize share request
+        response = operationRequest("/v1/ops/resource/share/create", """
+                {
+                  "invitationType": "link",
+                  "resources": [
+                    {
+                      "url": "applications/%s/test_app"
+                    }
+                  ]
+                }
+                """.formatted(bucket));
+        verify(response, 400);
     }
 }

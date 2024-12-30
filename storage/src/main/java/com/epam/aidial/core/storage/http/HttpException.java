@@ -22,4 +22,10 @@ public class HttpException extends RuntimeException {
         this.headers.putAll(Objects.requireNonNull(headers, "HTTP headers must not be null"));
     }
 
+
+    public HttpException(HttpStatus status, String message, Throwable cause) {
+        super(message, cause);
+        this.status = status;
+        this.headers = Map.of();
+    }
 }
