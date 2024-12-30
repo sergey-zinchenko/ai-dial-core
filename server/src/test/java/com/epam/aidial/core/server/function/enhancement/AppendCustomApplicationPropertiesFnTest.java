@@ -6,6 +6,7 @@ import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.util.ProxyUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ public class AppendCustomApplicationPropertiesFnTest {
 
     private Application application;
 
-    private AppendCustomApplicationPropertiesFn function;
+    private AppendApplicationPropertiesFn function;
 
     private final String schema = "{"
                                   + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
@@ -72,13 +73,13 @@ public class AppendCustomApplicationPropertiesFnTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        function = new AppendCustomApplicationPropertiesFn(proxy, context);
+        function = new AppendApplicationPropertiesFn(proxy, context);
         application = new Application();
         when(context.getConfig()).thenReturn(config);
     }
 
     @Test
-    void apply_appendsCustomProperties_whenApplicationHasCustomSchemaId() {
+    void apply_appendsCustomProperties_whenApplicationHasCustomSchemaIdAndNoCustomFieldsPassed() {
         String serverFile = "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext";
         when(context.getDeployment()).thenReturn(application);
         application.setCustomAppSchemaId(URI.create("customSchemaId"));
@@ -90,10 +91,10 @@ public class AppendCustomApplicationPropertiesFnTest {
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
         assertTrue(result);
-        assertNotNull(tree.get("custom_application_properties"));
+        assertNotNull(tree.get("custom_fields"));
         assertEquals(serverFile,
-                tree.get("custom_application_properties").get("serverFile").asText());
-        assertFalse(tree.get("custom_application_properties").has("clientFile"));
+                tree.get("custom_fields").get("application_properties").get("serverFile").asText());
+        assertFalse(tree.get("custom_fields").get("application_properties").has("clientFile"));
     }
 
     @Test
@@ -105,7 +106,7 @@ public class AppendCustomApplicationPropertiesFnTest {
         boolean result = function.apply(tree);
 
         assertFalse(result);
-        assertNull(tree.get("custom_application_properties"));
+        assertNull(tree.get("custom_fields"));
     }
 
     @Test
@@ -117,11 +118,11 @@ public class AppendCustomApplicationPropertiesFnTest {
         boolean result = function.apply(tree);
 
         assertFalse(result);
-        assertNull(tree.get("custom_application_properties"));
+        assertNull(tree.get("custom_fields"));
     }
 
     @Test
-    void apply_returnsFalse_whenCustomPropertiesAreEmpty() {
+    void apply_returnsTrue_whenCustomPropertiesAreEmptyAndApplicationHasCustomSchemaId() {
         when(context.getDeployment()).thenReturn(application);
         application.setCustomAppSchemaId(URI.create("customSchemaId"));
         Map<String, Object> customProps = new HashMap<>();
@@ -131,6 +132,35 @@ public class AppendCustomApplicationPropertiesFnTest {
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
         assertTrue(result);
-        assertNotNull(tree.get("custom_application_properties"));
+        assertNotNull(tree.get("custom_fields"));
+    }
+
+    @Test
+    void apply_appendsCustomProperties_whenApplicationHasCustomSchemaIdAndCustomFieldsPassed() throws JsonProcessingException {
+        String serverFile = "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext";
+        when(context.getDeployment()).thenReturn(application);
+        application.setCustomAppSchemaId(URI.create("customSchemaId"));
+        Map<String, Object> customProps = new HashMap<>();
+        customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
+        customProps.put("serverFile", serverFile);
+        application.setCustomProperties(customProps);
+        when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
+        ObjectNode tree = (ObjectNode) ProxyUtil.MAPPER.readTree("""
+                {
+                    "custom_fields": {
+                        "foo": "bar"
+                    }
+                }
+                """);
+        boolean result = function.apply(tree);
+        assertTrue(result);
+        assertNotNull(tree.get("custom_fields"));
+        assertEquals(serverFile,
+                tree.get("custom_fields").get("application_properties").get("serverFile").asText());
+        assertFalse(tree.get("custom_fields").get("application_properties").has("clientFile"));
+        assertTrue(tree.get("custom_fields").has("foo"));
+        assertEquals("bar",
+                tree.get("custom_fields").get("foo").asText());
+
     }
 }
