@@ -21,5 +21,7 @@ public class FeaturesData {
     private boolean folderAttachments = false;
     private boolean allowResume = true;
     private boolean accessibleByPerRequestKey = true;
-    private boolean contentPartsSupported = false;
+    private boolean contentParts = false;
+    private boolean temperature = true;
+    private boolean addons = true;
 }
