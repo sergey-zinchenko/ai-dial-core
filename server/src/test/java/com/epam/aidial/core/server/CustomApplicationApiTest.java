@@ -979,13 +979,15 @@ public class CustomApplicationApiTest extends ResourceBaseTest {
         response = send(HttpMethod.PUT, "/v1/applications/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_app_files", null, """
                   {
                       "displayName": "test_app",
-                      "customAppSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
-                       "property1": "test property1",
-                       "property2": "test property2",
-                       "property3": [
-                            "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt",
-                            "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt"
-                       ],
+                      "applicationTypeSchemaId": "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
+                      "applicationProperties": {
+                        "property1": "test property1",
+                        "property2": "test property2",
+                        "property3": [
+                                "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt",
+                                "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt"
+                        ]
+                       },
                        "userRoles": [
                             "Admin"
                        ],
@@ -1009,10 +1011,12 @@ public class CustomApplicationApiTest extends ResourceBaseTest {
                   "interceptors" : [ ],
                   "description_keywords" : [ ],
                   "max_retry_attempts" : 1,
-                  "custom_app_schema_id" : "https://mydial.somewhere.com/custom_application_schemas/specific_application_type",
-                  "property2" : "test property2",
-                  "property1" : "test property1",
-                  "property3" : [ "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt", "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt" ]
+                  "application_properties" : {
+                    "property1" : "test property1",
+                    "property2" : "test property2",
+                    "property3" : [ "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file1.txt", "files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/test_file2.txt" ]
+                  },
+                  "application_type_schema_id" : "https://mydial.somewhere.com/custom_application_schemas/specific_application_type"
                 }
                 """);
     }
