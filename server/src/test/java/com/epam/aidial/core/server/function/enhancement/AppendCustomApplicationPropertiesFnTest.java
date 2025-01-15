@@ -82,11 +82,11 @@ public class AppendCustomApplicationPropertiesFnTest {
     void apply_appendsCustomProperties_whenApplicationHasCustomSchemaIdAndNoCustomFieldsPassed() {
         String serverFile = "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext";
         when(context.getDeployment()).thenReturn(application);
-        application.setCustomAppSchemaId(URI.create("customSchemaId"));
+        application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
         Map<String, Object> customProps = new HashMap<>();
         customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         customProps.put("serverFile", serverFile);
-        application.setCustomProperties(customProps);
+        application.setApplicationProperties(customProps);
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
@@ -112,7 +112,7 @@ public class AppendCustomApplicationPropertiesFnTest {
     @Test
     void apply_returnsFalse_whenApplicationHasNoCustomSchemaId() {
         when(context.getDeployment()).thenReturn(application);
-        application.setCustomAppSchemaId(null);
+        application.setApplicationTypeSchemaId(null);
 
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
@@ -124,10 +124,10 @@ public class AppendCustomApplicationPropertiesFnTest {
     @Test
     void apply_returnsTrue_whenCustomPropertiesAreEmptyAndApplicationHasCustomSchemaId() {
         when(context.getDeployment()).thenReturn(application);
-        application.setCustomAppSchemaId(URI.create("customSchemaId"));
+        application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
         Map<String, Object> customProps = new HashMap<>();
         customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
-        application.setCustomProperties(customProps);
+        application.setApplicationProperties(customProps);
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
@@ -139,11 +139,11 @@ public class AppendCustomApplicationPropertiesFnTest {
     void apply_appendsCustomProperties_whenApplicationHasCustomSchemaIdAndCustomFieldsPassed() throws JsonProcessingException {
         String serverFile = "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext";
         when(context.getDeployment()).thenReturn(application);
-        application.setCustomAppSchemaId(URI.create("customSchemaId"));
+        application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
         Map<String, Object> customProps = new HashMap<>();
         customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         customProps.put("serverFile", serverFile);
-        application.setCustomProperties(customProps);
+        application.setApplicationProperties(customProps);
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
         ObjectNode tree = (ObjectNode) ProxyUtil.MAPPER.readTree("""
                 {

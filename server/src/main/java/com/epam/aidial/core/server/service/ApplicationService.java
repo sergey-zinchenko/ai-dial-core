@@ -421,7 +421,7 @@ public class ApplicationService {
     private void prepareApplication(ResourceDescriptor resource, Application application) {
         verifyApplication(resource);
 
-        if (application.getCustomAppSchemaId() != null) {
+        if (application.getApplicationTypeSchemaId() != null) {
             if (application.getEndpoint() != null || application.getFunction() != null) {
                 throw new IllegalArgumentException("Endpoint must not be set for custom application");
             }

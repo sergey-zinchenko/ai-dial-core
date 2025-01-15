@@ -61,7 +61,7 @@ class CustomApplicationsConformToTypeSchemasValidatorTest {
     void isValidReturnsFalseWhenSchemaValidationFails() {
         Map<String, Application> applications = new HashMap<>();
         Application application = new Application();
-        application.setCustomAppSchemaId(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type"));
+        application.setApplicationTypeSchemaId(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type"));
         applications.put("app1", application);
         config.setApplications(applications);
         Map<String, String> schemas = new HashMap<>();
@@ -93,10 +93,10 @@ class CustomApplicationsConformToTypeSchemasValidatorTest {
     void isValidReturnsTrueWhenSchemaValidationPasses() {
         Map<String, Application> applications = new HashMap<>();
         Application application = new Application();
-        application.setCustomAppSchemaId(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type"));
+        application.setApplicationTypeSchemaId(URI.create("https://mydial.epam.com/custom_application_schemas/specific_application_type"));
         Map<String, Object> props = new HashMap<>();
         props.put("file", "files/bucket/path/name.ext");
-        application.setCustomProperties(props);
+        application.setApplicationProperties(props);
         applications.put("app1", application);
         config.setApplications(applications);
         Map<String, String> schemas = new HashMap<>();
