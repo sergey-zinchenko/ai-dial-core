@@ -126,6 +126,9 @@ public class ApplicationTypeSchemaUtils {
         if (customApplicationSchema == null) {
             return application;
         }
+        if (application.getApplicationProperties() == null) {
+            return application;
+        }
         Application copy = new Application(application);
         Map<String, Object> appWithClientOptionsOnly = filterProperties(application.getApplicationProperties(), customApplicationSchema, "client");
         copy.setApplicationProperties(appWithClientOptionsOnly);

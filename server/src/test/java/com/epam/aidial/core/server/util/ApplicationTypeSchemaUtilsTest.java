@@ -159,6 +159,17 @@ public class ApplicationTypeSchemaUtilsTest {
     }
 
     @Test
+    public void filterCustomClientProperties_returnsOriginalApplication_whenApplicationPropertiesIsNull() {
+        when(config.getCustomApplicationSchema(any())).thenReturn(schema);
+        application.setApplicationTypeSchemaId(URI.create("schemaId"));
+        application.setApplicationProperties(null);
+
+        Application result = ApplicationTypeSchemaUtils.filterCustomClientProperties(config, application);
+
+        Assertions.assertSame(application, result);
+    }
+
+    @Test
     public void filterCustomClientProperties_returnsOriginalApplication_whenSchemaIsNull() {
         application.setApplicationTypeSchemaId(null);
 
