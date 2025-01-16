@@ -26,7 +26,6 @@ import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -220,6 +219,11 @@ public class ApplicationService {
         ResourceItemMetadata meta = resourceService.computeResource(resource, etag, json -> {
             Application existing = ProxyUtil.convertToObject(json, Application.class);
             Application.Function function = application.getFunction();
+
+            if (application.getApplicationTypeSchemaId() != null && existing != null
+                    && existing.getApplicationProperties() != null && application.getApplicationProperties() == null) {
+                throw new HttpException(HttpStatus.BAD_REQUEST, "The application with schema can not be updated to the one without properties");
+            }
 
             if (function != null) {
                 if (existing == null || existing.getFunction() == null) {
