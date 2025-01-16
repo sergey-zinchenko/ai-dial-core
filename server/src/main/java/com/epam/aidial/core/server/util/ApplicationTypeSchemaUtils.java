@@ -60,12 +60,12 @@ public class ApplicationTypeSchemaUtils {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> filterProperties(Map<String, Object> customProps, String schema, String collectorName) {
+    private static Map<String, Object> filterProperties(Map<String, Object> applicationProperties, String schema, String collectorName) {
         try {
             JsonSchema appSchema = SCHEMA_FACTORY.getSchema(schema);
             CollectorContext collectorContext = new CollectorContext();
-            String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(customProps);
-            Set<ValidationMessage> validationResult = appSchema.validate(customPropsJson, InputFormat.JSON,
+            String applicationPropertiesJson = ProxyUtil.MAPPER.writeValueAsString(applicationProperties);
+            Set<ValidationMessage> validationResult = appSchema.validate(applicationPropertiesJson, InputFormat.JSON,
                     e -> e.setCollectorContext(collectorContext));
             if (!validationResult.isEmpty()) {
                 throw new ApplicationTypeSchemaValidationException("Failed to validate custom app against the schema", validationResult);
@@ -76,7 +76,7 @@ public class ApplicationTypeSchemaUtils {
             }
             Map<String, Object> result = new HashMap<>();
             for (String propertyName : propsCollector.collect()) {
-                result.put(propertyName, customProps.get(propertyName));
+                result.put(propertyName, applicationProperties.get(propertyName));
             }
             return result;
         } catch (ApplicationTypeSchemaValidationException e) {
@@ -90,6 +90,9 @@ public class ApplicationTypeSchemaUtils {
         String customApplicationSchema = getCustomApplicationSchemaOrThrow(config, application);
         if (customApplicationSchema == null) {
             return Collections.emptyMap();
+        }
+        if (application.getApplicationProperties() == null) {
+            throw new ApplicationTypeSchemaValidationException("Typed application's properties not set");
         }
         return filterProperties(application.getApplicationProperties(), customApplicationSchema, "server");
     }

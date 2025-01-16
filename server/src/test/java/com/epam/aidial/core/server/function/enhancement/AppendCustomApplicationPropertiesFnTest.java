@@ -6,6 +6,7 @@ import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.util.ProxyUtil;
+import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -76,6 +78,15 @@ public class AppendCustomApplicationPropertiesFnTest {
         function = new AppendApplicationPropertiesFn(proxy, context);
         application = new Application();
         when(context.getConfig()).thenReturn(config);
+    }
+
+    @Test
+    void apply_throws_whenApplicationHasCustomSchemaIdAndNoCustomFieldsPassedAndApplicationPropertiesIsNull() {
+        when(context.getDeployment()).thenReturn(application);
+        application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
+        when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
+        ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
+        assertThrows(ApplicationTypeSchemaValidationException.class, () -> function.apply(tree));
     }
 
     @Test
