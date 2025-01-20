@@ -33,6 +33,9 @@ public class CollectRequestApplicationFilesFn extends BaseRequestFunction<Object
             if (!(deployment instanceof Application application && application.getApplicationTypeSchemaId() != null)) {
                 return false;
             }
+            if (application.getApplicationProperties() == null) {
+                throw new HttpException(HttpStatus.INTERNAL_SERVER_ERROR, "Typed application's properties not set");
+            }
             List<ResourceDescriptor> resources = ApplicationTypeSchemaUtils.getServerFiles(context.getConfig(), application, proxy.getEncryptionService(),
                     proxy.getResourceService());
             ApiKeyData keyData = context.getProxyApiKeyData();

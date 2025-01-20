@@ -173,9 +173,6 @@ public class ApplicationTypeSchemaUtils {
             if (customApplicationSchema == null) {
                 return Collections.emptyList();
             }
-            if (application.getApplicationProperties() == null) {
-                throw new ApplicationTypeSchemaValidationException("Typed application's properties not set");
-            }
             JsonSchema appSchema = SCHEMA_FACTORY.getSchema(customApplicationSchema);
             CollectorContext collectorContext = new CollectorContext();
             String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(application.getApplicationProperties());
