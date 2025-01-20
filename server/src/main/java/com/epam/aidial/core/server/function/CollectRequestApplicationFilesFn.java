@@ -9,6 +9,7 @@ import com.epam.aidial.core.server.data.AutoSharedData;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
+import com.epam.aidial.core.server.validation.ApplicationTypeResourceException;
 import com.epam.aidial.core.storage.data.ResourceAccessType;
 import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
@@ -27,21 +28,29 @@ public class CollectRequestApplicationFilesFn extends BaseRequestFunction<Object
 
     @Override
     public Boolean apply(ObjectNode tree) {
-        Deployment deployment = context.getDeployment();
-        if (!(deployment instanceof Application application && application.getApplicationTypeSchemaId() != null)) {
+        try {
+            Deployment deployment = context.getDeployment();
+            if (!(deployment instanceof Application application && application.getApplicationTypeSchemaId() != null)) {
+                return false;
+            }
+            List<ResourceDescriptor> resources = ApplicationTypeSchemaUtils.getServerFiles(context.getConfig(), application, proxy.getEncryptionService(),
+                    proxy.getResourceService());
+            ApiKeyData keyData = context.getProxyApiKeyData();
+            appendFilesToProxyApiKeyData(keyData, resources);
+            String perRequestKey = keyData.getPerRequestKey();
+            if (perRequestKey == null) { //This class may be not the one who modifies the perRequestKey
+                proxy.getApiKeyStore().assignPerRequestApiKey(keyData);
+            } else {
+                proxy.getApiKeyStore().updatePerRequestApiKey(perRequestKey, json -> ProxyUtil.convertToString(keyData));
+            }
             return false;
+        } catch (HttpException ex) {
+            throw ex;
+        } catch (ApplicationTypeResourceException ex) {
+            throw new HttpException(HttpStatus.FORBIDDEN, ex.getMessage());
+        } catch (Exception e) {
+            throw new HttpException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-        List<ResourceDescriptor> resources = ApplicationTypeSchemaUtils.getServerFiles(context.getConfig(), application, proxy.getEncryptionService(),
-                proxy.getResourceService());
-        ApiKeyData keyData = context.getProxyApiKeyData();
-        appendFilesToProxyApiKeyData(keyData, resources);
-        String perRequestKey = context.getProxyApiKeyData().getPerRequestKey();
-        if (perRequestKey == null) { //This class may be not the one who modifies the perRequestKey
-            proxy.getApiKeyStore().assignPerRequestApiKey(keyData);
-        } else {
-            proxy.getApiKeyStore().updatePerRequestApiKey(perRequestKey, json -> ProxyUtil.convertToString(keyData));
-        }
-        return false;
     }
 
     private void appendFilesToProxyApiKeyData(ApiKeyData apiKeyData, List<ResourceDescriptor> resources) {

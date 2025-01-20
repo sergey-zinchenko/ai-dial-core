@@ -14,10 +14,6 @@ public class ApplicationTypeSchemaValidationException extends RuntimeException {
         this.validationMessages = validationMessages;
     }
 
-    public ApplicationTypeSchemaValidationException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     public ApplicationTypeSchemaValidationException(String message) {
         super(message);
     }

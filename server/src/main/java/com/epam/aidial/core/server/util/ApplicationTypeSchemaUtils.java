@@ -4,6 +4,7 @@ import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.validation.ApplicationTypeResourceException;
 import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.epam.aidial.core.server.validation.DialFileKeyword;
 import com.epam.aidial.core.server.validation.DialMetaKeyword;
@@ -172,6 +173,9 @@ public class ApplicationTypeSchemaUtils {
             if (customApplicationSchema == null) {
                 return Collections.emptyList();
             }
+            if (application.getApplicationProperties() == null) {
+                throw new ApplicationTypeSchemaValidationException("Typed application's properties not set");
+            }
             JsonSchema appSchema = SCHEMA_FACTORY.getSchema(customApplicationSchema);
             CollectorContext collectorContext = new CollectorContext();
             String customPropsJson = ProxyUtil.MAPPER.writeValueAsString(application.getApplicationProperties());
@@ -189,15 +193,15 @@ public class ApplicationTypeSchemaUtils {
                 try {
                     ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
                     if (!descriptor.isFolder() && !resourceService.hasResource(descriptor)) {
-                        throw new ApplicationTypeSchemaValidationException("Resource listed as dependent to the application not found or inaccessible: " + item);
+                        throw new ApplicationTypeResourceException("Resource listed as dependent to the application not found or inaccessible", item);
                     }
                     result.add(descriptor);
                 } catch (IllegalArgumentException e) {
-                    throw new ApplicationTypeSchemaValidationException("Failed to get resource descriptor for url: " + item, e);
+                    throw new ApplicationTypeResourceException("Failed to get resource descriptor for url", item, e);
                 }
             }
             return result;
-        } catch (ApplicationTypeSchemaValidationException e) {
+        } catch (ApplicationTypeSchemaValidationException | ApplicationTypeResourceException e) {
             throw e;
         } catch (Exception e) {
             throw new ApplicationTypeSchemaProcessingException("Failed to obtain list of files attached to the custom app", e);
