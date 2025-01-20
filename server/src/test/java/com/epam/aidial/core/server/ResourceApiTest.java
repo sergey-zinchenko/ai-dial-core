@@ -403,7 +403,7 @@ class ResourceApiTest extends ResourceBaseTest {
                        "description": "My application description"
                   }
                 """);
-        Assertions.assertEquals(400, response.status());
+        Assertions.assertEquals(403, response.status());
     }
 
     @Test
