@@ -230,21 +230,22 @@ public class ApplicationTypeSchemaUtilsTest {
 
     @Test
     public void modifyEndpointForCustomApplication_throws_whenEndpointNotFound() {
-        String schemaWithoutEndpoint = "{"
-                                       + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
-                                       + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
-                                       + "\"properties\": {"
-                                       + "  \"clientFile\": {"
-                                       + "    \"type\": \"string\","
-                                       + "    \"format\": \"dial-file-encoded\","
-                                       + "    \"dial:meta\": {"
-                                       + "      \"dial:propertyKind\": \"client\","
-                                       + "      \"dial:propertyOrder\": 1"
-                                       + "    }"
-                                       + "  }"
-                                       + "},"
-                                       + "\"required\": [\"clientFile\"]"
-                                       + "}";
+        String schemaWithoutEndpoint = """
+                {
+                "$schema": "https://dial.epam.com/application_type_schemas/schema#",
+                "$id": "https://mydial.epam.com/custom_application_schemas/specific_application_type",
+                "properties": {
+                  "clientFile": {
+                    "type": "string",
+                    "format": "dial-file-encoded",
+                    "dial:meta": {
+                      "dial:propertyKind": "client",
+                      "dial:propertyOrder": 1
+                    }
+                  }
+                },
+                "required": ["clientFile"]
+                }""";
         application.setApplicationTypeSchemaId(URI.create("schemaId"));
         when(config.getCustomApplicationSchema(any())).thenReturn(schemaWithoutEndpoint);
 
