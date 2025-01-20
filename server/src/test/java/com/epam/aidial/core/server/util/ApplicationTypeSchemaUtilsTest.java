@@ -360,4 +360,48 @@ public class ApplicationTypeSchemaUtilsTest {
         Assertions.assertThrows(ApplicationTypeSchemaValidationException.class, () ->
                 ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService, resourceService));
     }
+
+    @Test
+    public void getServerFiles_returnsListOfServerFiles_whenSchemaExists() {
+        application.setApplicationTypeSchemaId(URI.create("schemaId"));
+        application.setApplicationProperties(customProperties);
+        when(config.getCustomApplicationSchema(any())).thenReturn(schema);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        when(resourceService.hasResource(any())).thenReturn(true);
+
+        List<ResourceDescriptor> result = ApplicationTypeSchemaUtils.getServerFiles(config, application, encryptionService, resourceService);
+
+        Assertions.assertEquals(1, result.size());
+        Assertions.assertEquals(result.get(0).getUrl(), serverProperties.get("serverFile"));
+    }
+
+    @Test
+    public void getServerFiles_returnsEmptyList_whenSchemaIsNull() {
+        application.setApplicationTypeSchemaId(null);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        List<ResourceDescriptor> result = ApplicationTypeSchemaUtils.getServerFiles(config, application, encryptionService, resourceService);
+
+        Assertions.assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void getServerFiles_throwsException_whenResourceNotFound() {
+        application.setApplicationTypeSchemaId(URI.create("schemaId"));
+        application.setApplicationProperties(customProperties);
+        when(config.getCustomApplicationSchema(any())).thenReturn(schema);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        when(resourceService.hasResource(any())).thenReturn(false);
+
+        Assertions.assertThrows(ApplicationTypeSchemaValidationException.class, () ->
+                ApplicationTypeSchemaUtils.getServerFiles(config, application, encryptionService, resourceService));
+    }
 }

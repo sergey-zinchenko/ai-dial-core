@@ -33,12 +33,16 @@ public class DialFileKeyword implements Keyword {
         private static final ErrorMessageType ERROR_MESSAGE_TYPE = () -> "dial:file";
 
         private final Boolean value;
+        private final Boolean isServerProp;
 
         public DialFileCollectorValidator(SchemaLocation schemaLocation, JsonNodePath evaluationPath, JsonNode schemaNode,
                                           JsonSchema parentSchema, Keyword keyword,
                                           ValidationContext validationContext, boolean suppressSubSchemaRetrieval) {
             super(schemaLocation, evaluationPath, schemaNode, parentSchema, ERROR_MESSAGE_TYPE, keyword, validationContext, suppressSubSchemaRetrieval);
             this.value = schemaNode.booleanValue();
+            JsonNode metaNode = parentSchema.getSchemaNode().get("dial:meta");
+            JsonNode propertyKindNode = (metaNode != null) ? metaNode.get("dial:propertyKind") : null;
+            this.isServerProp = (propertyKindNode != null) && propertyKindNode.asText().equalsIgnoreCase("server");
         }
 
         @Override
@@ -46,9 +50,14 @@ public class DialFileKeyword implements Keyword {
         public Set<ValidationMessage> validate(ExecutionContext executionContext, JsonNode jsonNode, JsonNode jsonNode1, JsonNodePath jsonNodePath) {
             if (value) {
                 CollectorContext collectorContext = executionContext.getCollectorContext();
-                ListCollector<String> serverPropsCollector = (ListCollector<String>) collectorContext.getCollectorMap()
-                        .computeIfAbsent("file", k -> new ListCollector<String>());
-                serverPropsCollector.combine(List.of(jsonNode.asText()));
+                ListCollector<String> fileCollector = (ListCollector<String>) collectorContext.getCollectorMap()
+                        .computeIfAbsent(ListCollector.FileCollectorType.ALL_FILES.getValue(), k -> new ListCollector<String>());
+                fileCollector.combine(List.of(jsonNode.asText()));
+                if (isServerProp) {
+                    ListCollector<String> serverFileCollector = (ListCollector<String>) collectorContext.getCollectorMap()
+                            .computeIfAbsent(ListCollector.FileCollectorType.ONLY_SERVER_FILES.getValue(), k -> new ListCollector<String>());
+                    serverFileCollector.combine(List.of(jsonNode.asText()));
+                }
             }
             return Set.of();
         }

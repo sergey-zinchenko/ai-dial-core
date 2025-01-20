@@ -154,8 +154,19 @@ public class ApplicationTypeSchemaUtils {
         application.setApplicationProperties(customPropertiesMap);
     }
 
+    public static List<ResourceDescriptor> getServerFiles(Config config, Application application, EncryptionService encryptionService,
+                                                          ResourceService resourceService) {
+        return getFiles(config, application, encryptionService, resourceService, ListCollector.FileCollectorType.ONLY_SERVER_FILES);
+    }
+
+    public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
+                                                    ResourceService resourceService) {
+        return getFiles(config, application, encryptionService, resourceService, ListCollector.FileCollectorType.ALL_FILES);
+    }
+
     @SuppressWarnings("unchecked")
-    public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService, ResourceService resourceService) {
+    private static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
+                                                    ResourceService resourceService, ListCollector.FileCollectorType collectorName) {
         try {
             String customApplicationSchema = getCustomApplicationSchemaOrThrow(config, application);
             if (customApplicationSchema == null) {
@@ -169,7 +180,7 @@ public class ApplicationTypeSchemaUtils {
             if (!validationResult.isEmpty()) {
                 throw new ApplicationTypeSchemaValidationException("Failed to validate custom app against the schema", validationResult);
             }
-            ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get("file");
+            ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get(collectorName.getValue());
             if (propsCollector == null) {
                 return Collections.emptyList();
             }
