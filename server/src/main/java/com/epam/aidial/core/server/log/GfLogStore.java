@@ -325,7 +325,20 @@ public class GfLogStore implements LogStore {
             }
 
             if (choices != null) {
-                MergeChunks.removeIndices(choices);
+                if (choices.isArray()) {
+                    for (JsonNode choice : choices) {
+                        MergeChunks.removeIndices(choice);
+                        if (choice.isObject()) {
+                            ObjectNode choiceObj = (ObjectNode) choice;
+                            JsonNode delta = choiceObj.get("delta");
+                            if (delta != null) {
+                                choiceObj.set("message", delta);
+                                choiceObj.remove("delta");
+                            }
+                        }
+                    }
+                }
+
                 result.set("choices", choices);
             }
             return ProxyUtil.convertToString(result);
