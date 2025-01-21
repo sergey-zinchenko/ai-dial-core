@@ -12,6 +12,7 @@ import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.data.ApiKeyData;
 import com.epam.aidial.core.server.data.ErrorData;
 import com.epam.aidial.core.server.function.BaseRequestFunction;
+import com.epam.aidial.core.server.function.CollectRequestApplicationFilesFn;
 import com.epam.aidial.core.server.function.CollectRequestAttachmentsFn;
 import com.epam.aidial.core.server.function.CollectRequestDataFn;
 import com.epam.aidial.core.server.function.CollectResponseAttachmentsFn;
@@ -73,7 +74,8 @@ public class DeploymentPostController {
                 new ApplyDefaultDeploymentSettingsFn(proxy, context),
                 new EnhanceAssistantRequestFn(proxy, context),
                 new EnhanceModelRequestFn(proxy, context),
-                new AppendApplicationPropertiesFn(proxy, context));
+                new AppendApplicationPropertiesFn(proxy, context),
+                new CollectRequestApplicationFilesFn(proxy, context));
     }
 
     public Future<?> handle(String deploymentId, String deploymentApi) {
@@ -267,6 +269,7 @@ public class DeploymentPostController {
             if (ProxyUtil.processChain(tree, enhancementFunctions)) {
                 context.setRequestBody(Buffer.buffer(ProxyUtil.MAPPER.writeValueAsBytes(tree)));
             }
+            proxy.getApiKeyStore().assignPerRequestApiKey(context.getProxyApiKeyData());
         } catch (Throwable e) {
             if (e instanceof HttpException httpException) {
                 respond(httpException.getStatus(), httpException.getMessage());

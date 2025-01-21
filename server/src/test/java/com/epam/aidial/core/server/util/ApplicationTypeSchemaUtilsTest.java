@@ -6,6 +6,7 @@ import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.validation.ApplicationTypeResourceException;
 import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.epam.aidial.core.storage.resource.ResourceDescriptor;
 import com.epam.aidial.core.storage.service.ResourceService;
@@ -32,34 +33,35 @@ public class ApplicationTypeSchemaUtilsTest {
     private ResourceDescriptor resource;
     private AccessService accessService;
 
-    private final String schema = "{"
-            + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
-            + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
-            + "\"dial:applicationTypeEditorUrl\": \"https://mydial.epam.com/specific_application_type_editor\","
-            + "\"dial:applicationTypeDisplayName\": \"Specific Application Type\","
-            + "\"dial:applicationTypeCompletionEndpoint\": \"http://specific_application_service/opeani/v1/completion\","
-            + "\"properties\": {"
-            + "  \"clientFile\": {"
-            + "    \"type\": \"string\","
-            + "    \"format\": \"dial-file-encoded\","
-            + "    \"dial:meta\": {"
-            + "      \"dial:propertyKind\": \"client\","
-            + "      \"dial:propertyOrder\": 1"
-            + "    },"
-            + "    \"dial:file\" : true"
-            + "  },"
-            + "  \"serverFile\": {"
-            + "    \"type\": \"string\","
-            + "    \"format\": \"dial-file-encoded\","
-            + "    \"dial:meta\": {"
-            + "      \"dial:propertyKind\": \"server\","
-            + "      \"dial:propertyOrder\": 2"
-            + "    },"
-            + "    \"dial:file\" : true"
-            + "  }"
-            + "},"
-            + "\"required\": [\"clientFile\",\"serverFile\"]"
-            + "}";
+    private final String schema = """
+            {
+              "$schema" : "https://dial.epam.com/application_type_schemas/schema#",
+              "$id" : "https://mydial.epam.com/custom_application_schemas/specific_application_type",
+              "dial:applicationTypeEditorUrl" : "https://mydial.epam.com/specific_application_type_editor",
+              "dial:applicationTypeDisplayName" : "Specific Application Type",
+              "dial:applicationTypeCompletionEndpoint" : "http://specific_application_service/opeani/v1/completion",
+              "properties" : {
+                "clientFile" : {
+                  "type" : "string",
+                  "format" : "dial-file-encoded",
+                  "dial:meta" : {
+                    "dial:propertyKind" : "client",
+                    "dial:propertyOrder" : 1
+                  },
+                  "dial:file" : true
+                },
+                "serverFile" : {
+                  "type" : "string",
+                  "format" : "dial-file-encoded",
+                  "dial:meta" : {
+                    "dial:propertyKind" : "server",
+                    "dial:propertyOrder" : 2
+                  },
+                  "dial:file" : true
+                }
+              },
+              "required" : [ "clientFile", "serverFile" ]
+            }""";
 
     private final Map<String, Object> clientProperties = Map.of("clientFile",
             "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
@@ -228,21 +230,22 @@ public class ApplicationTypeSchemaUtilsTest {
 
     @Test
     public void modifyEndpointForCustomApplication_throws_whenEndpointNotFound() {
-        String schemaWithoutEndpoint = "{"
-                + "\"$schema\": \"https://dial.epam.com/application_type_schemas/schema#\","
-                + "\"$id\": \"https://mydial.epam.com/custom_application_schemas/specific_application_type\","
-                + "\"properties\": {"
-                + "  \"clientFile\": {"
-                + "    \"type\": \"string\","
-                + "    \"format\": \"dial-file-encoded\","
-                + "    \"dial:meta\": {"
-                + "      \"dial:propertyKind\": \"client\","
-                + "      \"dial:propertyOrder\": 1"
-                + "    }"
-                + "  }"
-                + "},"
-                + "\"required\": [\"clientFile\"]"
-                + "}";
+        String schemaWithoutEndpoint = """
+                {
+                "$schema": "https://dial.epam.com/application_type_schemas/schema#",
+                "$id": "https://mydial.epam.com/custom_application_schemas/specific_application_type",
+                "properties": {
+                  "clientFile": {
+                    "type": "string",
+                    "format": "dial-file-encoded",
+                    "dial:meta": {
+                      "dial:propertyKind": "client",
+                      "dial:propertyOrder": 1
+                    }
+                  }
+                },
+                "required": ["clientFile"]
+                }""";
         application.setApplicationTypeSchemaId(URI.create("schemaId"));
         when(config.getCustomApplicationSchema(any())).thenReturn(schemaWithoutEndpoint);
 
@@ -357,7 +360,51 @@ public class ApplicationTypeSchemaUtilsTest {
 
         when(resourceService.hasResource(any())).thenReturn(false);
 
-        Assertions.assertThrows(ApplicationTypeSchemaValidationException.class, () ->
+        Assertions.assertThrows(ApplicationTypeResourceException.class, () ->
                 ApplicationTypeSchemaUtils.getFiles(config, application, encryptionService, resourceService));
+    }
+
+    @Test
+    public void getServerFiles_returnsListOfServerFiles_whenSchemaExists() {
+        application.setApplicationTypeSchemaId(URI.create("schemaId"));
+        application.setApplicationProperties(customProperties);
+        when(config.getCustomApplicationSchema(any())).thenReturn(schema);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        when(resourceService.hasResource(any())).thenReturn(true);
+
+        List<ResourceDescriptor> result = ApplicationTypeSchemaUtils.getServerFiles(config, application, encryptionService, resourceService);
+
+        Assertions.assertEquals(1, result.size());
+        Assertions.assertEquals(result.get(0).getUrl(), serverProperties.get("serverFile"));
+    }
+
+    @Test
+    public void getServerFiles_returnsEmptyList_whenSchemaIsNull() {
+        application.setApplicationTypeSchemaId(null);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        List<ResourceDescriptor> result = ApplicationTypeSchemaUtils.getServerFiles(config, application, encryptionService, resourceService);
+
+        Assertions.assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void getServerFiles_throwsException_whenResourceNotFound() {
+        application.setApplicationTypeSchemaId(URI.create("schemaId"));
+        application.setApplicationProperties(customProperties);
+        when(config.getCustomApplicationSchema(any())).thenReturn(schema);
+
+        EncryptionService encryptionService = mock(EncryptionService.class);
+        ResourceService resourceService = mock(ResourceService.class);
+
+        when(resourceService.hasResource(any())).thenReturn(false);
+
+        Assertions.assertThrows(ApplicationTypeResourceException.class, () ->
+                ApplicationTypeSchemaUtils.getServerFiles(config, application, encryptionService, resourceService));
     }
 }

@@ -12,11 +12,11 @@ import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.service.ApplicationService;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
-import com.epam.aidial.core.server.service.ShareService;
 import com.epam.aidial.core.server.util.ApplicationTypeSchemaProcessingException;
 import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.util.ResourceDescriptorFactory;
+import com.epam.aidial.core.server.validation.ApplicationTypeResourceException;
 import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.epam.aidial.core.storage.data.MetadataBase;
 import com.epam.aidial.core.storage.data.ResourceItemMetadata;
@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static com.epam.aidial.core.storage.http.HttpStatus.BAD_REQUEST;
+import static com.epam.aidial.core.storage.http.HttpStatus.FORBIDDEN;
 import static com.epam.aidial.core.storage.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 @Slf4j
@@ -130,11 +131,9 @@ public class ResourceController extends AccessControlBaseController {
         Future<Pair<ResourceItemMetadata, String>> responseFuture = (descriptor.getType() == ResourceTypes.APPLICATION)
                 ? getApplicationData(descriptor, hasWriteAccess, etagHeader) : getResourceData(descriptor, etagHeader);
 
-        responseFuture.onSuccess(pair -> {
-                    context.putHeader(HttpHeaders.ETAG, pair.getKey().getEtag())
-                            .exposeHeaders()
-                            .respond(HttpStatus.OK, pair.getValue());
-                })
+        responseFuture.onSuccess(pair -> context.putHeader(HttpHeaders.ETAG, pair.getKey().getEtag())
+                .exposeHeaders()
+                .respond(HttpStatus.OK, pair.getValue()))
                 .onFailure(error -> handleError(descriptor, error));
 
         return Future.succeededFuture();
@@ -177,7 +176,9 @@ public class ResourceController extends AccessControlBaseController {
                         throw new HttpException(BAD_REQUEST, "No read access to file: " + file.getUrl());
                     });
         } catch (ValidationException | IllegalArgumentException | ApplicationTypeSchemaValidationException e) {
-            throw new HttpException(BAD_REQUEST, " Custom application validation failed", e);
+            throw new HttpException(BAD_REQUEST, "Custom application validation failed", e);
+        } catch (ApplicationTypeResourceException e) {
+            throw new HttpException(FORBIDDEN, "Failed to access application resource " + e.getResourceUri(), e);
         } catch (ApplicationTypeSchemaProcessingException e) {
             throw new HttpException(INTERNAL_SERVER_ERROR, "Custom application processing exception", e);
         }
@@ -232,11 +233,9 @@ public class ResourceController extends AccessControlBaseController {
             });
         }
 
-        responseFuture.onSuccess((metadata) -> {
-                    context.putHeader(HttpHeaders.ETAG, metadata.getEtag())
-                            .exposeHeaders()
-                            .respond(HttpStatus.OK, metadata);
-                })
+        responseFuture.onSuccess((metadata) -> context.putHeader(HttpHeaders.ETAG, metadata.getEtag())
+                .exposeHeaders()
+                .respond(HttpStatus.OK, metadata))
                 .onFailure(error -> handleError(descriptor, error));
 
         return Future.succeededFuture();

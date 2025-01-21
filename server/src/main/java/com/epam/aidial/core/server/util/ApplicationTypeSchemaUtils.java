@@ -4,6 +4,7 @@ import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.security.EncryptionService;
+import com.epam.aidial.core.server.validation.ApplicationTypeResourceException;
 import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
 import com.epam.aidial.core.server.validation.DialFileKeyword;
 import com.epam.aidial.core.server.validation.DialMetaKeyword;
@@ -154,8 +155,19 @@ public class ApplicationTypeSchemaUtils {
         application.setApplicationProperties(customPropertiesMap);
     }
 
+    public static List<ResourceDescriptor> getServerFiles(Config config, Application application, EncryptionService encryptionService,
+                                                          ResourceService resourceService) {
+        return getFiles(config, application, encryptionService, resourceService, ListCollector.FileCollectorType.ONLY_SERVER_FILES);
+    }
+
+    public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
+                                                    ResourceService resourceService) {
+        return getFiles(config, application, encryptionService, resourceService, ListCollector.FileCollectorType.ALL_FILES);
+    }
+
     @SuppressWarnings("unchecked")
-    public static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService, ResourceService resourceService) {
+    private static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
+                                                    ResourceService resourceService, ListCollector.FileCollectorType collectorName) {
         try {
             String customApplicationSchema = getCustomApplicationSchemaOrThrow(config, application);
             if (customApplicationSchema == null) {
@@ -169,7 +181,7 @@ public class ApplicationTypeSchemaUtils {
             if (!validationResult.isEmpty()) {
                 throw new ApplicationTypeSchemaValidationException("Failed to validate custom app against the schema", validationResult);
             }
-            ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get("file");
+            ListCollector<String> propsCollector = (ListCollector<String>) collectorContext.getCollectorMap().get(collectorName.getValue());
             if (propsCollector == null) {
                 return Collections.emptyList();
             }
@@ -178,15 +190,15 @@ public class ApplicationTypeSchemaUtils {
                 try {
                     ResourceDescriptor descriptor = ResourceDescriptorFactory.fromAnyUrl(item, encryptionService);
                     if (!descriptor.isFolder() && !resourceService.hasResource(descriptor)) {
-                        throw new ApplicationTypeSchemaValidationException("Resource listed as dependent to the application not found or inaccessible: " + item);
+                        throw new ApplicationTypeResourceException("Resource listed as dependent to the application not found or inaccessible", item);
                     }
                     result.add(descriptor);
                 } catch (IllegalArgumentException e) {
-                    throw new ApplicationTypeSchemaValidationException("Failed to get resource descriptor for url: " + item, e);
+                    throw new ApplicationTypeResourceException("Failed to get resource descriptor for url", item, e);
                 }
             }
             return result;
-        } catch (ApplicationTypeSchemaValidationException e) {
+        } catch (ApplicationTypeSchemaValidationException | ApplicationTypeResourceException e) {
             throw e;
         } catch (Exception e) {
             throw new ApplicationTypeSchemaProcessingException("Failed to obtain list of files attached to the custom app", e);
