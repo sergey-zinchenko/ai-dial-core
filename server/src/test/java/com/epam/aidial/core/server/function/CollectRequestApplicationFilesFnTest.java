@@ -7,12 +7,10 @@ import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.data.ApiKeyData;
 import com.epam.aidial.core.server.security.AccessService;
-import com.epam.aidial.core.server.security.ApiKeyStore;
 import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.vertx.core.Vertx;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,10 +51,6 @@ public class CollectRequestApplicationFilesFnTest {
     @Mock
     private ResourceService resourceService;
 
-    private ApiKeyStore apiKeyStore;
-
-    @Mock
-    private Vertx vertx;
 
     @InjectMocks
     private CollectRequestApplicationFilesFn fn;
@@ -100,7 +94,6 @@ public class CollectRequestApplicationFilesFnTest {
     void setUp() {
         application = new Application();
         tree = JsonNodeFactory.instance.objectNode();
-        apiKeyStore = new ApiKeyStore(resourceService, vertx);
     }
 
     @Test
@@ -127,7 +120,6 @@ public class CollectRequestApplicationFilesFnTest {
     void apply_appendsFilesToApiKeyData_whenApplicationHasCustomSchemaId() {
         when(proxy.getAccessService()).thenReturn(accessService);
         when(proxy.getResourceService()).thenReturn(resourceService);
-        when(proxy.getApiKeyStore()).thenReturn(apiKeyStore);
         when(context.getProxyApiKeyData()).thenReturn(new ApiKeyData());
         when(context.getConfig()).thenReturn(config);
         String serverFile = "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext";
@@ -147,7 +139,6 @@ public class CollectRequestApplicationFilesFnTest {
 
         assertFalse(result);
         assertNotNull(apiKeyData.getAttachedFiles().get(serverFile));
-        assertNotNull(apiKeyData.getPerRequestKey());
         assertEquals(1, apiKeyData.getAttachedFiles().size());
     }
 

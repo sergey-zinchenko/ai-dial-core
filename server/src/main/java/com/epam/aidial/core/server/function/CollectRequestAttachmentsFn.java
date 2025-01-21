@@ -28,9 +28,6 @@ public class CollectRequestAttachmentsFn extends BaseRequestFunction<ObjectNode>
     @Override
     public Boolean apply(ObjectNode tree) {
         ProxyUtil.collectAttachedFilesFromRequest(tree, this::processAttachedFile);
-        // assign api key data after processing attachments
-        ApiKeyData destApiKeyData = context.getProxyApiKeyData();
-        proxy.getApiKeyStore().assignPerRequestApiKey(destApiKeyData);
         return false;
     }
 

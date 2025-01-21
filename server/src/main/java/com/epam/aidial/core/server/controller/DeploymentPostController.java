@@ -269,6 +269,7 @@ public class DeploymentPostController {
             if (ProxyUtil.processChain(tree, enhancementFunctions)) {
                 context.setRequestBody(Buffer.buffer(ProxyUtil.MAPPER.writeValueAsBytes(tree)));
             }
+            proxy.getApiKeyStore().assignPerRequestApiKey(context.getProxyApiKeyData());
         } catch (Throwable e) {
             if (e instanceof HttpException httpException) {
                 respond(httpException.getStatus(), httpException.getMessage());

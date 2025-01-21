@@ -8,7 +8,6 @@ import com.epam.aidial.core.server.data.ApiKeyData;
 import com.epam.aidial.core.server.data.AutoSharedData;
 import com.epam.aidial.core.server.security.AccessService;
 import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
-import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.validation.ApplicationTypeResourceException;
 import com.epam.aidial.core.storage.data.ResourceAccessType;
 import com.epam.aidial.core.storage.http.HttpException;
@@ -38,14 +37,7 @@ public class CollectRequestApplicationFilesFn extends BaseRequestFunction<Object
             }
             List<ResourceDescriptor> resources = ApplicationTypeSchemaUtils.getServerFiles(context.getConfig(), application, proxy.getEncryptionService(),
                     proxy.getResourceService());
-            ApiKeyData keyData = context.getProxyApiKeyData();
-            appendFilesToProxyApiKeyData(keyData, resources);
-            String perRequestKey = keyData.getPerRequestKey();
-            if (perRequestKey == null) { //This class may be not the one who modifies the perRequestKey
-                proxy.getApiKeyStore().assignPerRequestApiKey(keyData);
-            } else {
-                proxy.getApiKeyStore().updatePerRequestApiKey(perRequestKey, json -> ProxyUtil.convertToString(keyData));
-            }
+            appendFilesToProxyApiKeyData(resources);
             return false;
         } catch (HttpException ex) {
             throw ex;
@@ -56,7 +48,8 @@ public class CollectRequestApplicationFilesFn extends BaseRequestFunction<Object
         }
     }
 
-    private void appendFilesToProxyApiKeyData(ApiKeyData apiKeyData, List<ResourceDescriptor> resources) {
+    private void appendFilesToProxyApiKeyData(List<ResourceDescriptor> resources) {
+        ApiKeyData apiKeyData = context.getProxyApiKeyData();
         for (ResourceDescriptor resource : resources) {
             String resourceUrl = resource.getUrl();
             AccessService accessService = proxy.getAccessService();
