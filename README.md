@@ -63,6 +63,7 @@ Priority order:
 | identityProviders.*.negativeCacheExpirationMs |       10000        |    No    |How long to retain JWKS response in the cache in case of failed response.
 | identityProviders.*.issuerPattern             |         -          |    No    |Regexp to match the claim "iss" to identity provider.
 | identityProviders.*.disableJwtVerification    |       false        |    No    |The flag disables JWT verification. *Note*. `userInfoEndpoint` must be unset if the flag is set to `true`.
+| identityProviders.*.audience                  |         -          |    No    |If the setting is set it will be validated against the claim `aud` in JWT
 | vertx.*                                       |         -          |    No    |Vertx settings. Refer to [vertx.io](https://vertx.io/docs/apidocs/io/vertx/core/VertxOptions.html) to learn more.
 | server.*                                      |         -          |    No    |Vertx HTTP server settings for incoming requests.
 | client.*                                      |         -          |    No    |Vertx HTTP client settings for outbound requests.
