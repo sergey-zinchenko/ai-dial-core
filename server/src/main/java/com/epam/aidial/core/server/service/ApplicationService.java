@@ -25,6 +25,7 @@ import com.epam.aidial.core.storage.service.LockService;
 import com.epam.aidial.core.storage.service.ResourceService;
 import com.epam.aidial.core.storage.util.EtagHeader;
 import com.epam.aidial.core.storage.util.UrlUtil;
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import lombok.Getter;
@@ -339,6 +340,17 @@ public class ApplicationService {
         }
     }
 
+    public Application redeployApplication(ProxyContext context, ResourceDescriptor resource) {
+        verifyApplication(resource);
+        controller.verifyActive();
+
+        Pair<Application, Future<Void>> result = undeployApplicationInternal(resource);
+
+        result.getValue().map(ignore -> deployApplication(context, resource))
+                .onFailure(error -> log.error("Application redeployment is failed due to the error", error));
+        return result.getKey();
+    }
+
     public Application deployApplication(ProxyContext context, ResourceDescriptor resource) {
         verifyApplication(resource);
         controller.verifyActive();
@@ -374,6 +386,10 @@ public class ApplicationService {
     }
 
     public Application undeployApplication(ResourceDescriptor resource) {
+        return undeployApplicationInternal(resource).getKey();
+    }
+
+    private Pair<Application, Future<Void>> undeployApplicationInternal(ResourceDescriptor resource) {
         verifyApplication(resource);
         controller.verifyActive();
 
@@ -405,8 +421,8 @@ public class ApplicationService {
             return ProxyUtil.convertToString(application);
         });
 
-        vertx.executeBlocking(() -> terminateApplication(resource, null), false);
-        return result.getValue();
+        Future<Void> future = vertx.executeBlocking(() -> terminateApplication(resource, null), false);
+        return Pair.of(result.getValue(), future);
     }
 
     public Application.Logs getApplicationLogs(ResourceDescriptor resource) {
