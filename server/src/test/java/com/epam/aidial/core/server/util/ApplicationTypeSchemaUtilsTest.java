@@ -210,26 +210,26 @@ public class ApplicationTypeSchemaUtilsTest {
     }
 
     @Test
-    public void modifyEndpointForCustomApplication_setsCustomEndpoint_whenSchemaExists() {
+    public void modifyEndpointForCustomApplication_setsCustomEndpoints_whenSchemaExists() {
         application.setApplicationTypeSchemaId(URI.create("schemaId"));
         when(config.getCustomApplicationSchema(any())).thenReturn(schema);
 
-        Application result = ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(config, application);
+        Application result = ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(config, application);
 
         Assertions.assertNotSame(application, result);
         Assertions.assertEquals("http://specific_application_service/opeani/v1/completion", result.getEndpoint());
     }
 
     @Test
-    public void modifyEndpointForCustomApplication_throws_whenSchemaIsNull() {
+    public void modifyEndpointsForCustomApplication_throws_whenSchemaIsNull() {
         application.setApplicationTypeSchemaId(null);
 
         Assertions.assertThrows(ApplicationTypeSchemaProcessingException.class,
-                () -> ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(config, application));
+                () -> ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(config, application));
     }
 
     @Test
-    public void modifyEndpointForCustomApplication_throws_whenEndpointNotFound() {
+    public void modifyEndpointForCustomApplication_throws_whenEndpointsNotFound() {
         String schemaWithoutEndpoint = """
                 {
                 "$schema": "https://dial.epam.com/application_type_schemas/schema#",
@@ -250,7 +250,7 @@ public class ApplicationTypeSchemaUtilsTest {
         when(config.getCustomApplicationSchema(any())).thenReturn(schemaWithoutEndpoint);
 
         Assertions.assertThrows(ApplicationTypeSchemaProcessingException.class, () ->
-                ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(config, application));
+                ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(config, application));
     }
 
     @Test

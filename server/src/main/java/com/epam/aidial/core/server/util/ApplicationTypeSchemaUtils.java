@@ -2,6 +2,7 @@ package com.epam.aidial.core.server.util;
 
 import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Config;
+import com.epam.aidial.core.config.Features;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.security.EncryptionService;
 import com.epam.aidial.core.server.validation.ApplicationTypeResourceException;
@@ -31,7 +32,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
+import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.APPLICATION_TYPE_COMPLETION_ENDPOINT;
+import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.APPLICATION_TYPE_CONFIGURATION_ENDPOINT;
 import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.getMetaschemaBuilder;
 
 
@@ -98,27 +102,48 @@ public class ApplicationTypeSchemaUtils {
         return filterProperties(application.getApplicationProperties(), customApplicationSchema, "server");
     }
 
-    public static String getCustomApplicationEndpoint(Config config, Application application) {
+    public static void consumeCustomApplicationEndpoints(Config config, Application application, BiConsumer<String, String> consumer) {
+        String completionEndpoint;
+        String configurationEndpoint;
         try {
             String schema = getCustomApplicationSchemaOrThrow(config, application);
             JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
-            JsonNode endpointNode = schemaNode.get("dial:applicationTypeCompletionEndpoint");
-            if (endpointNode == null) {
+
+            completionEndpoint = schemaNode.get(APPLICATION_TYPE_COMPLETION_ENDPOINT).asText();
+            configurationEndpoint = schemaNode.get(APPLICATION_TYPE_CONFIGURATION_ENDPOINT).asText();
+
+            if (completionEndpoint == null) {
                 throw new ApplicationTypeSchemaProcessingException("Custom application schema does not contain completion endpoint");
             }
-            return endpointNode.asText();
         } catch (JsonProcessingException | IllegalArgumentException e) {
-            throw new ApplicationTypeSchemaProcessingException("Failed to get custom application endpoint", e);
+            throw new ApplicationTypeSchemaProcessingException("Failed to get custom application endpoints", e);
         }
+
+        consumer.accept(completionEndpoint, configurationEndpoint);
     }
 
-    public static Application modifyEndpointForCustomApplication(Config config, Application application) {
-        String customEndpoint = getCustomApplicationEndpoint(config, application);
-        if (customEndpoint == null) {
+    public static Application modifyEndpointsForCustomApplication(Config config, Application application) {
+        if (application.getApplicationTypeSchemaId() == null) {
             return application;
         }
+
         Application copy = new Application(application);
-        copy.setEndpoint(customEndpoint);
+
+        consumeCustomApplicationEndpoints(config, application, (completionEndpoint, configurationEndpoint) -> {
+            copy.setEndpoint(completionEndpoint);
+
+            Features features = copy.getFeatures();
+            if (features == null) {
+                features = new Features();
+            }
+
+            if (configurationEndpoint != null) {
+                features.setConfigurationEndpoint(configurationEndpoint);
+            }
+
+            copy.setFeatures(features);
+        });
+
         return copy;
     }
 
@@ -167,7 +192,7 @@ public class ApplicationTypeSchemaUtils {
 
     @SuppressWarnings("unchecked")
     private static List<ResourceDescriptor> getFiles(Config config, Application application, EncryptionService encryptionService,
-                                                    ResourceService resourceService, ListCollector.FileCollectorType collectorName) {
+                                                     ResourceService resourceService, ListCollector.FileCollectorType collectorName) {
         try {
             String customApplicationSchema = getCustomApplicationSchemaOrThrow(config, application);
             if (customApplicationSchema == null) {

@@ -85,7 +85,7 @@ public class DeploymentController {
                                 modifiedApp = ApplicationTypeSchemaUtils.filterCustomClientProperties(context.getConfig(), application);
                             }
                             if (modifyEndpoint) {
-                                modifiedApp = ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(context.getConfig(), modifiedApp);
+                                modifiedApp = ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(context.getConfig(), modifiedApp);
                             }
                             return modifiedApp;
                         }, false);
@@ -123,7 +123,7 @@ public class DeploymentController {
                     app = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, app);
                 }
                 if (modifyEndpoint) {
-                    app = ApplicationTypeSchemaUtils.modifyEndpointForCustomApplication(context.getConfig(), app);
+                    app = ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(context.getConfig(), app);
                 }
             }
 

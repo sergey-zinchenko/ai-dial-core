@@ -1,14 +1,20 @@
 package com.epam.aidial.core.server.controller;
 
+import com.epam.aidial.core.config.Application;
 import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.data.ApiKeyData;
+import com.epam.aidial.core.server.function.BaseRequestFunction;
+import com.epam.aidial.core.server.function.enhancement.AppendApplicationPropertiesFn;
 import com.epam.aidial.core.server.service.PermissionDeniedException;
 import com.epam.aidial.core.server.service.ResourceNotFoundException;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.vertx.stream.BufferingReadStream;
+import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.netty.buffer.ByteBufInputStream;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -21,7 +27,9 @@ import io.vertx.core.http.RequestOptions;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.InputStream;
 import java.net.URL;
+import java.util.List;
 import java.util.function.Function;
 
 @Slf4j
@@ -29,19 +37,22 @@ public class DeploymentFeatureController {
 
     private final Proxy proxy;
     private final ProxyContext context;
+    private final List<BaseRequestFunction<ObjectNode>> enhancementFunctions;
 
     public DeploymentFeatureController(Proxy proxy, ProxyContext context) {
         this.proxy = proxy;
         this.context = context;
+        this.enhancementFunctions = List.of(new AppendApplicationPropertiesFn(proxy, context));
     }
 
     public Future<?> handle(String deploymentId, Function<Deployment, String> endpointGetter, boolean requireEndpoint) {
         // make sure request.body() called before request.resume()
         return DeploymentController.selectDeployment(context, deploymentId, false, true).map(dep -> {
             String endpoint = endpointGetter.apply(dep);
+            boolean isCustomApplication = dep instanceof Application && ((Application) dep).isCustom();
             context.setDeployment(dep);
             context.getRequest().body()
-                    .onSuccess(requestBody -> handleRequestBody(endpoint, requireEndpoint, requestBody))
+                    .onSuccess(requestBody -> handleRequestBody(endpoint, isCustomApplication, requireEndpoint, requestBody))
                     .onFailure(this::handleRequestBodyError);
             return dep;
         }).otherwise(error -> {
@@ -51,9 +62,7 @@ public class DeploymentFeatureController {
     }
 
     @SneakyThrows
-    private void handleRequestBody(String endpoint, boolean requireEndpoint, Buffer requestBody) {
-        context.setRequestBody(requestBody);
-
+    private void handleRequestBody(String endpoint, Boolean requireEnrichment, boolean requireEndpoint, Buffer requestBody) {
         if (endpoint == null) {
             if (requireEndpoint) {
                 respond(HttpStatus.FORBIDDEN, "Forbidden deployment");
@@ -63,6 +72,28 @@ public class DeploymentFeatureController {
             }
             return;
         }
+
+        if (!requireEnrichment) {
+            context.setRequestBody(requestBody);
+        } else {
+            try (InputStream stream = new ByteBufInputStream(requestBody.getByteBuf())) {
+                final ObjectNode tree = (stream.available() != 0) ? (ObjectNode) ProxyUtil.MAPPER.readTree(stream)
+                        : ProxyUtil.MAPPER.createObjectNode();
+                if (ProxyUtil.processChain(tree, enhancementFunctions)) {
+                    context.setRequestBody(Buffer.buffer(ProxyUtil.MAPPER.writeValueAsBytes(tree)));
+                }
+            } catch (Throwable e) {
+                if (e instanceof HttpException httpException) {
+                    respond(httpException.getStatus(), httpException.getMessage());
+                } else {
+                    respond(HttpStatus.BAD_REQUEST);
+                }
+                log.warn("Can't process JSON request body. Trace: {}. Span: {}. Error:",
+                        context.getTraceId(), context.getSpanId(), e);
+                return;
+            }
+        }
+
 
         ApiKeyData proxyApiKeyData = new ApiKeyData();
         setupProxyApiKeyData(proxyApiKeyData);

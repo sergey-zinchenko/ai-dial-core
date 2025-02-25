@@ -28,6 +28,11 @@
           "format": "uri",
           "description": "URL to the completion endpoint of the custom application of given type"
         },
+        "dial:applicationTypeConfigurationEndpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the configuration endpoint of the custom application of given type"
+        },
         "dial:applicationTypeDisplayName": {
           "type": "string",
           "description": "Display name of the custom application of given type"

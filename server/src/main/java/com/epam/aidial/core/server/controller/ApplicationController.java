@@ -67,6 +67,7 @@ public class ApplicationController {
             for (Application application : config.getApplications().values()) {
                 if (application.hasAccess(context.getUserRoles())) {
                     application = ApplicationTypeSchemaUtils.filterCustomClientProperties(config, application);
+                    application = ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(config, application);
                     list.add(application);
                 }
             }
