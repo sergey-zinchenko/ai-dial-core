@@ -62,7 +62,7 @@ public class DeploymentFeatureController {
     }
 
     @SneakyThrows
-    private void handleRequestBody(String endpoint, boolean requireEnrichment, boolean requireEndpoint, Buffer requestBody) {
+    private void handleRequestBody(String endpoint, boolean enrichmentRequired, boolean requireEndpoint, Buffer requestBody) {
         if (endpoint == null) {
             if (requireEndpoint) {
                 respond(HttpStatus.FORBIDDEN, "Forbidden deployment");
@@ -73,7 +73,7 @@ public class DeploymentFeatureController {
             return;
         }
 
-        if (!requireEnrichment) {
+        if (!enrichmentRequired) {
             context.setRequestBody(requestBody);
         } else {
             try (InputStream stream = new ByteBufInputStream(requestBody.getByteBuf())) {
