@@ -102,24 +102,30 @@ public class ApplicationTypeSchemaUtils {
         return filterProperties(application.getApplicationProperties(), customApplicationSchema, "server");
     }
 
-    public static void consumeCustomApplicationEndpoints(Config config, Application application, BiConsumer<String, String> consumer) {
-        String completionEndpoint;
-        String configurationEndpoint;
+    private static void consumeCustomApplicationEndpoints(Config config, Application application, BiConsumer<String, String> consumer) {
         try {
             String schema = getCustomApplicationSchemaOrThrow(config, application);
             JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
 
-            completionEndpoint = schemaNode.get(APPLICATION_TYPE_COMPLETION_ENDPOINT).asText();
-            configurationEndpoint = schemaNode.get(APPLICATION_TYPE_CONFIGURATION_ENDPOINT).asText();
+            String completionEndpoint = getEndpoint(schemaNode, APPLICATION_TYPE_COMPLETION_ENDPOINT, true);
+            String configurationEndpoint = getEndpoint(schemaNode, APPLICATION_TYPE_CONFIGURATION_ENDPOINT, false);
 
-            if (completionEndpoint == null) {
-                throw new ApplicationTypeSchemaProcessingException("Custom application schema does not contain completion endpoint");
-            }
+            consumer.accept(completionEndpoint, configurationEndpoint);
         } catch (JsonProcessingException | IllegalArgumentException e) {
             throw new ApplicationTypeSchemaProcessingException("Failed to get custom application endpoints", e);
         }
+    }
 
-        consumer.accept(completionEndpoint, configurationEndpoint);
+    private static String getEndpoint(JsonNode schemaNode, String endpointKey, boolean isRequired) {
+        JsonNode endpointNode = schemaNode.get(endpointKey);
+        if (endpointNode == null) {
+            if (isRequired) {
+                throw new ApplicationTypeSchemaProcessingException("Custom application schema does not contain " + endpointKey);
+            } else {
+                return null;
+            }
+        }
+        return endpointNode.asText();
     }
 
     public static Application modifyEndpointsForCustomApplication(Config config, Application application) {

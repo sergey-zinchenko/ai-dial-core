@@ -221,11 +221,11 @@ public class ApplicationTypeSchemaUtilsTest {
     }
 
     @Test
-    public void modifyEndpointsForCustomApplication_throws_whenSchemaIsNull() {
+    public void modifyEndpointsForCustomApplication_return_original_app_whenSchemaIsNull() {
         application.setApplicationTypeSchemaId(null);
 
-        Assertions.assertThrows(ApplicationTypeSchemaProcessingException.class,
-                () -> ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(config, application));
+        Assertions.assertSame(application,
+                ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(config, application));
     }
 
     @Test
