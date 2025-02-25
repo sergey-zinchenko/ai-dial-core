@@ -133,12 +133,8 @@ public class AccessService {
     private Map<ResourceDescriptor, Set<ResourceAccessType>> getAdminAccess(
             Set<ResourceDescriptor> resources, ProxyContext context) {
         if (hasAdminAccess(context)) {
-            boolean isNotApplication = context.getApiKeyData().getPerRequestKey() == null;
-            Set<ResourceAccessType> permissions = isNotApplication
-                    ? ResourceAccessType.ALL
-                    : ResourceAccessType.READ_ONLY;
             return resources.stream()
-                    .collect(Collectors.toUnmodifiableMap(Function.identity(), resource -> permissions));
+                    .collect(Collectors.toUnmodifiableMap(Function.identity(), resource -> ResourceAccessType.ALL));
         }
 
         return Map.of();
@@ -217,14 +213,9 @@ public class AccessService {
             }
 
             String parentPath = resource.getParentPath();
-            String filePath;
-            if (resource.isFolder()) {
-                filePath = parentPath;
-            } else {
-                filePath = parentPath == null
-                        ? resource.getName()
-                        : parentPath + ResourceDescriptor.PATH_SEPARATOR + resource.getName();
-            }
+            String filePath = parentPath == null
+                    ? resource.getName()
+                    : parentPath + ResourceDescriptor.PATH_SEPARATOR + resource.getName();
 
             if (filePath != null && filePath.startsWith(appPath)) {
                 result.put(resource, ResourceAccessType.ALL);
@@ -260,7 +251,8 @@ public class AccessService {
     }
 
     public boolean hasAdminAccess(ProxyContext context) {
-        return RuleMatcher.match(context, adminRules);
+        return context.getApiKeyData().getPerRequestKey() == null // not application
+                && RuleMatcher.match(context, adminRules);
     }
 
     public void filterForbidden(ProxyContext context, ResourceDescriptor descriptor, MetadataBase metadata) {

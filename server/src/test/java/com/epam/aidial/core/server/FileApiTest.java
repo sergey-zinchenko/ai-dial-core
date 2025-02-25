@@ -245,6 +245,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-RAIL",
                                               "contentLength" : 17,
                                               "contentType" : "text/custom"
                                             }
@@ -440,6 +441,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-RAIL",
                                               "contentLength" : 17,
                                               "contentType" : "text/custom"
                                             }
@@ -796,6 +798,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-GPT",
                                               "contentLength" : 17,
                                               "contentType" : "text/custom"
                                             }
@@ -901,6 +904,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-RAIL",
                                               "contentLength" : 17,
                                               "contentType" : "text/plan"
                                             }
@@ -981,6 +985,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-RAIL",
                                               "contentLength" : 17,
                                               "contentType" : "text/plan"
                                             }
@@ -1049,6 +1054,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-RAIL",
                                               "contentLength" : 17,
                                               "contentType" : "text/plan"
                                             }
@@ -1128,6 +1134,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-RAIL",
                                               "contentLength" : 17,
                                               "contentType" : "text/custom"
                                             }
@@ -1160,6 +1167,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-RAIL",
                                               "contentLength" : 17,
                                               "contentType" : "text/custom"
                                             }
@@ -1270,6 +1278,7 @@ public class FileApiTest extends ResourceBaseTest {
                                                       "createdAt" : "@ignore",
                                                       "updatedAt" : "@ignore",
                                                       "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                                      "author" : "EPM-RTC-RAIL",
                                                       "contentLength" : 17,
                                                       "contentType" : "binary/octet-stream"
                                                     }
@@ -1344,6 +1353,7 @@ public class FileApiTest extends ResourceBaseTest {
                                               "createdAt" : "@ignore",
                                               "updatedAt" : "@ignore",
                                               "etag" : "ac79653edeb65ab5563585f2d5f14fe9",
+                                              "author" : "EPM-RTC-RAIL",
                                               "contentLength" : 17,
                                               "contentType" : "text/plan"
                                             }
@@ -1566,7 +1576,8 @@ public class FileApiTest extends ResourceBaseTest {
                                       "updatedAt":"@ignore",
                                       "etag":"bb6ed8b95d44dba4f8e4a99ebaca9a00",
                                       "contentLength":11,
-                                      "contentType":"text/custom"
+                                      "contentType":"text/custom",
+                                      "author": "EPM-RTC-RAIL"
                                     }
                                     """, response.body());
                             checkpoint.flag();
@@ -1599,6 +1610,73 @@ public class FileApiTest extends ResourceBaseTest {
                     .send(context.succeeding(response -> {
                         context.verify(() -> {
                             assertEquals(200, response.statusCode());
+                            checkpoint.flag();
+                        });
+                    }));
+        });
+    }
+
+    @Test
+    public void testAdminRightsNotInheritedByPerRequestKey(Vertx vertx, VertxTestContext context) {
+        ApiKeyData adminAppKey = createAdminAppKey();
+        apiKeyStore.assignPerRequestApiKey(adminAppKey);
+
+        Checkpoint checkpoint = context.checkpoint(4);
+        WebClient client = WebClient.create(vertx);
+
+        String fileUrl = "/v1/files/3CcedGxCx23EwiVbVmscVktScRyf46KypuBQ65miviST/file.txt";
+        Future.succeededFuture().compose((mapper) -> {
+            // Create a file using proxy key1
+            Promise<Void> promise = Promise.promise();
+            client.put(serverPort, "localhost", fileUrl)
+                    .putHeader("Api-key", "proxyKey1")
+                    .as(BodyCodec.string())
+                    .sendMultipartForm(generateMultipartForm("file.txt", TEST_FILE_CONTENT, "text/plain"),
+                            context.succeeding(response -> {
+                                context.verify(() -> {
+                                    assertEquals(200, response.statusCode());
+                                    checkpoint.flag();
+                                    promise.complete();
+                                });
+                            })
+                    );
+            return promise.future();
+        }).compose((mapper) -> {
+            // Verify that admin has read access to the file
+            Promise<Void> promise = Promise.promise();
+            client.get(serverPort, "localhost", fileUrl)
+                    .putHeader("Authorization", "admin")
+                    .as(BodyCodec.string())
+                    .send(context.succeeding(response -> {
+                        context.verify(() -> {
+                            assertEquals(200, response.statusCode());
+                            checkpoint.flag();
+                            promise.complete();
+                        });
+                    }));
+            return promise.future();
+        }).compose((mapper) -> {
+            // Verify that a per-request key has access to the appdata inside admin's bucket
+            Promise<Void> promise = Promise.promise();
+            client.get(serverPort, "localhost", "/v1/metadata/files/4X25dj1mja51jykqxsXnCH/appdata/testapp/")
+                    .putHeader("Api-key", adminAppKey.getPerRequestKey())
+                    .as(BodyCodec.string())
+                    .send(context.succeeding(response -> {
+                        context.verify(() -> {
+                            assertEquals(404, response.statusCode());
+                            checkpoint.flag();
+                            promise.complete();
+                        });
+                    }));
+            return promise.future();
+        }).andThen((mapper) -> {
+            // Ensure that a per-request key derived from admin key does not grant access to the file
+            client.get(serverPort, "localhost", fileUrl)
+                    .putHeader("Api-key", adminAppKey.getPerRequestKey())
+                    .as(BodyCodec.string())
+                    .send(context.succeeding(response -> {
+                        context.verify(() -> {
+                            assertEquals(403, response.statusCode());
                             checkpoint.flag();
                         });
                     }));

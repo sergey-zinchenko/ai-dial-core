@@ -8,6 +8,7 @@ import com.epam.aidial.core.config.Config;
 import com.epam.aidial.core.config.Deployment;
 import com.epam.aidial.core.config.Features;
 import com.epam.aidial.core.config.Interceptor;
+import com.epam.aidial.core.config.Limit;
 import com.epam.aidial.core.config.Model;
 import com.epam.aidial.core.config.Role;
 import com.epam.aidial.core.config.Route;
@@ -51,31 +52,40 @@ public final class FileConfigStore implements ConfigStore {
     }
 
     @Override
-    public Config load() {
+    public Config get() {
         return config;
     }
 
+    @Override
+    public Config reload() {
+        return load(true);
+    }
+
     @SneakyThrows
-    private void load(boolean fail) {
+    private Config load(boolean fail) {
         try {
+            log.debug("Config loading is started");
             Config config = loadConfig();
 
             for (Map.Entry<String, Route> entry : config.getRoutes().entrySet()) {
                 String name = entry.getKey();
                 Route route = entry.getValue();
                 route.setName(name);
+                log.debug("Loading {}", route);
             }
 
             for (Map.Entry<String, Model> entry : config.getModels().entrySet()) {
                 String name = entry.getKey();
                 Model model = entry.getValue();
                 model.setName(name);
+                log.debug("Loading {}", model);
             }
 
             for (Map.Entry<String, Addon> entry : config.getAddons().entrySet()) {
                 String name = entry.getKey();
                 Addon addon = entry.getValue();
                 addon.setName(name);
+                log.debug("Loading {}", addon);
             }
 
             Assistants assistants = config.getAssistant();
@@ -89,6 +99,7 @@ public final class FileConfigStore implements ConfigStore {
                 }
 
                 setMissingFeatures(assistant, assistants.getFeatures());
+                log.debug("Loading {}", assistant);
             }
             // base assistant
             if (assistants.getEndpoint() != null) {
@@ -103,6 +114,7 @@ public final class FileConfigStore implements ConfigStore {
                 String name = entry.getKey();
                 Application application = entry.getValue();
                 application.setName(name);
+                log.debug("Loading {}", application);
             }
 
             apiKeyStore.addProjectKeys(config.getKeys());
@@ -111,15 +123,23 @@ public final class FileConfigStore implements ConfigStore {
                 String name = entry.getKey();
                 Role role = entry.getValue();
                 role.setName(name);
+                log.debug("Start loading role `{}`", role.getName());
+                for (Map.Entry<String, Limit> limitEntry : role.getLimits().entrySet()) {
+                    log.debug("Loading {} for deployment `{}`", limitEntry.getValue(), limitEntry.getKey());
+                }
+                log.debug("End loading role `{}`", role.getName());
             }
 
             for (Map.Entry<String, Interceptor> entry : config.getInterceptors().entrySet()) {
                 String name = entry.getKey();
                 Interceptor interceptor = entry.getValue();
                 interceptor.setName(name);
+                log.debug("Interceptor {}", interceptor);
             }
 
             this.config = config;
+            log.debug("Config loading is completed");
+            return config;
         } catch (Throwable e) {
             if (fail) {
                 throw e;
@@ -127,6 +147,7 @@ public final class FileConfigStore implements ConfigStore {
 
             log.warn("Failed to reload config: {}", e.getMessage());
         }
+        return null;
     }
 
     private Config loadConfig() throws Exception {
