@@ -33,6 +33,21 @@
           "format": "uri",
           "description": "URL to the configuration endpoint of the custom application of given type"
         },
+        "dial:applicationTypeRateEndpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the rate endpoint of the custom application of given type"
+        },
+        "dial:applicationTypeTokenizeEndpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the tokenize endpoint of the custom application of given type"
+        },
+        "dial:applicationTypeTruncatePromptEndpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the truncate prompt of the custom application of given type"
+        },
         "dial:applicationTypeDisplayName": {
           "type": "string",
           "description": "Display name of the custom application of given type"
