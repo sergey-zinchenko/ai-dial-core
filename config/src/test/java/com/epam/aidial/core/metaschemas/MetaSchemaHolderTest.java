@@ -338,6 +338,36 @@ public class MetaSchemaHolderTest {
                 }""";
         JsonNode customSchemaNode = MAPPER.readTree(customSchemaStr);
         Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
-        assertEquals(4, metaSchemaValidationMessages.size(), "Custom schema should be valid against meta schema");
+        assertEquals(4, metaSchemaValidationMessages.size(), "Custom schema should be invalid against meta schema with bad features");
+    }
+
+    @Test
+    void customSchema_validatesAgainstMetaSchema_fails_ok_when_all_features() throws Exception {
+        String customSchemaStr = """
+                {\
+                "$schema": "https://dial.epam.com/application_type_schemas/schema#",\
+                "$id": "https://mydial.epam.com/custom_application_schemas/specific_application_type",\
+                "dial:applicationTypeEditorUrl": "https://mydial.epam.com/specific_application_type_editor",\
+                "dial:applicationTypeDisplayName": "Specific Application Type",\
+                "dial:applicationTypeCompletionEndpoint": "http://specific_application_service/completion",\
+                "dial:applicationTypeConfigurationEndpoint": "http://specific_application_service/configuration",\
+                "dial:applicationTypeRateEndpoint": "http://specific_application_service/rate",\
+                "dial:applicationTypeTokenizeEndpoint": "http://specific_application_service/tokenize",\
+                "dial:applicationTypeTruncatePromptEndpoint": "http://specific_application_service/truncate",\
+                "properties": {\
+                  "file": {\
+                    "type": "string",\
+                    "format": "dial-file-encoded",\
+                    "dial:meta": {\
+                      "dial:propertyKind": "client",\
+                      "dial:propertyOrder": 1\
+                    }\
+                  }\
+                },\
+                "required": ["file"]\
+                }""";
+        JsonNode customSchemaNode = MAPPER.readTree(customSchemaStr);
+        Set<ValidationMessage> metaSchemaValidationMessages = jsonMetaSchema.validate(customSchemaNode);
+        assertTrue(metaSchemaValidationMessages.isEmpty(), "Custom schema should be valid against meta schema");
     }
 }
