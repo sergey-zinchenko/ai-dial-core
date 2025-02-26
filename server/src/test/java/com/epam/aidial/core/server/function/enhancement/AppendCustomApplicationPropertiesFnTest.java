@@ -153,7 +153,7 @@ public class AppendCustomApplicationPropertiesFnTest {
         verify(request).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
     }
 
-   @Test
+    @Test
     void apply_setsApplicationPropertiesHeader_whenApplicationHasCustomSchemaIdAndCustomFieldsPassed() {
         String serverFile = "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext";
         when(context.getDeployment()).thenReturn(application);
