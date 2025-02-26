@@ -32,10 +32,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
 
 import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.APPLICATION_TYPE_COMPLETION_ENDPOINT;
 import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.APPLICATION_TYPE_CONFIGURATION_ENDPOINT;
+import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.APPLICATION_TYPE_RATE_ENDPOINT;
+import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.APPLICATION_TYPE_TOKENIZE_ENDPOINT;
+import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.APPLICATION_TYPE_TRUNCATE_PROMPT_ENDPOINT;
 import static com.epam.aidial.core.metaschemas.MetaSchemaHolder.getMetaschemaBuilder;
 
 
@@ -102,15 +104,23 @@ public class ApplicationTypeSchemaUtils {
         return filterProperties(application.getApplicationProperties(), customApplicationSchema, "server");
     }
 
-    private static void consumeCustomApplicationEndpoints(Config config, Application application, BiConsumer<String, String> consumer) {
+    @FunctionalInterface
+    private interface EndpointConsumer {
+        void accept(String completion, String configuration, String rate, String tokenize, String truncatePrompt);
+    }
+
+    private static void consumeCustomApplicationEndpoints(Config config, Application application, EndpointConsumer consumer) {
         try {
             String schema = getCustomApplicationSchemaOrThrow(config, application);
             JsonNode schemaNode = ProxyUtil.MAPPER.readTree(schema);
 
             String completionEndpoint = getEndpoint(schemaNode, APPLICATION_TYPE_COMPLETION_ENDPOINT, true);
             String configurationEndpoint = getEndpoint(schemaNode, APPLICATION_TYPE_CONFIGURATION_ENDPOINT, false);
+            String rateEndpoint = getEndpoint(schemaNode, APPLICATION_TYPE_RATE_ENDPOINT, false);
+            String tokenizeEndpoint = getEndpoint(schemaNode, APPLICATION_TYPE_TOKENIZE_ENDPOINT, false);
+            String truncatePromptEndpoint = getEndpoint(schemaNode, APPLICATION_TYPE_TRUNCATE_PROMPT_ENDPOINT, false);
 
-            consumer.accept(completionEndpoint, configurationEndpoint);
+            consumer.accept(completionEndpoint, configurationEndpoint, rateEndpoint, tokenizeEndpoint, truncatePromptEndpoint);
         } catch (JsonProcessingException | IllegalArgumentException e) {
             throw new ApplicationTypeSchemaProcessingException("Failed to get custom application endpoints", e);
         }
@@ -135,7 +145,7 @@ public class ApplicationTypeSchemaUtils {
 
         Application copy = new Application(application);
 
-        consumeCustomApplicationEndpoints(config, application, (completionEndpoint, configurationEndpoint) -> {
+        consumeCustomApplicationEndpoints(config, application, (completionEndpoint, configurationEndpoint, rateEndpoint, tokenizeEndpoint, truncatePromptEndpoint) -> {
             copy.setEndpoint(completionEndpoint);
 
             Features features = copy.getFeatures();
@@ -145,6 +155,15 @@ public class ApplicationTypeSchemaUtils {
 
             if (configurationEndpoint != null) {
                 features.setConfigurationEndpoint(configurationEndpoint);
+            }
+            if (rateEndpoint != null) {
+                features.setRateEndpoint(rateEndpoint);
+            }
+            if (tokenizeEndpoint != null) {
+                features.setTokenizeEndpoint(tokenizeEndpoint);
+            }
+            if (truncatePromptEndpoint != null) {
+                features.setTruncatePromptEndpoint(truncatePromptEndpoint);
             }
 
             copy.setFeatures(features);
