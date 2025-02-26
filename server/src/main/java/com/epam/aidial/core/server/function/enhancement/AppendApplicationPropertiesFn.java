@@ -7,11 +7,13 @@ import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.function.BaseRequestFunction;
 import com.epam.aidial.core.server.util.ApplicationTypeSchemaUtils;
 import com.epam.aidial.core.server.util.ProxyUtil;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
+
+import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_PROPERTIES;
 
 @Slf4j
 public class AppendApplicationPropertiesFn extends BaseRequestFunction<ObjectNode> {
@@ -19,6 +21,7 @@ public class AppendApplicationPropertiesFn extends BaseRequestFunction<ObjectNod
         super(proxy, context);
     }
 
+    @SneakyThrows
     @Override
     public Boolean apply(ObjectNode tree) {
         Deployment deployment = context.getDeployment();
@@ -26,14 +29,7 @@ public class AppendApplicationPropertiesFn extends BaseRequestFunction<ObjectNod
             return false;
         }
         Map<String, Object> props = ApplicationTypeSchemaUtils.getCustomServerProperties(context.getConfig(), application);
-        ObjectNode customFieldsNode = ProxyUtil.MAPPER.createObjectNode();
-        customFieldsNode.set("application_properties", ProxyUtil.MAPPER.valueToTree(props));
-        JsonNode currentCustomFields = tree.get("custom_fields");
-        if (currentCustomFields != null) {
-            ((ObjectNode) currentCustomFields).setAll(customFieldsNode);
-        } else {
-            tree.set("custom_fields", customFieldsNode);
-        }
-        return true;
+        context.getProxyRequest().putHeader(HEADER_APPLICATION_PROPERTIES, ProxyUtil.MAPPER.writeValueAsString(props));
+        return false;
     }
 }

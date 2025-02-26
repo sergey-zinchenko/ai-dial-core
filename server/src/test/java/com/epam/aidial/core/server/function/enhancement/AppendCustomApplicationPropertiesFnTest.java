@@ -7,8 +7,8 @@ import com.epam.aidial.core.server.Proxy;
 import com.epam.aidial.core.server.ProxyContext;
 import com.epam.aidial.core.server.util.ProxyUtil;
 import com.epam.aidial.core.server.validation.ApplicationTypeSchemaValidationException;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.vertx.core.http.HttpClientRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -18,14 +18,14 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_PROPERTIES;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class AppendCustomApplicationPropertiesFnTest {
@@ -38,6 +38,9 @@ public class AppendCustomApplicationPropertiesFnTest {
 
     @Mock
     private Config config;
+
+    @Mock
+    private HttpClientRequest request;
 
     private Application application;
 
@@ -80,6 +83,7 @@ public class AppendCustomApplicationPropertiesFnTest {
         MockitoAnnotations.openMocks(this);
         function = new AppendApplicationPropertiesFn(proxy, context);
         application = new Application();
+        when(context.getProxyRequest()).thenReturn(request);
         when(context.getConfig()).thenReturn(config);
     }
 
@@ -93,22 +97,20 @@ public class AppendCustomApplicationPropertiesFnTest {
     }
 
     @Test
-    void apply_appendsCustomProperties_whenApplicationHasCustomSchemaIdAndNoCustomFieldsPassed() {
-        String serverFile = "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext";
+    void apply_setsApplicationPropertiesHeader_whenApplicationHasCustomSchemaId() {
         when(context.getDeployment()).thenReturn(application);
         application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
         Map<String, Object> customProps = new HashMap<>();
         customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
-        customProps.put("serverFile", serverFile);
+        customProps.put("serverFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
         application.setApplicationProperties(customProps);
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
+
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
-        assertTrue(result);
-        assertNotNull(tree.get("custom_fields"));
-        assertEquals(serverFile,
-                tree.get("custom_fields").get("application_properties").get("serverFile").asText());
-        assertFalse(tree.get("custom_fields").get("application_properties").has("clientFile"));
+
+        assertFalse(result);
+        verify(request).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
     }
 
     @Test
@@ -120,7 +122,7 @@ public class AppendCustomApplicationPropertiesFnTest {
         boolean result = function.apply(tree);
 
         assertFalse(result);
-        assertNull(tree.get("custom_fields"));
+        verify(request, never()).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
     }
 
     @Test
@@ -132,25 +134,27 @@ public class AppendCustomApplicationPropertiesFnTest {
         boolean result = function.apply(tree);
 
         assertFalse(result);
-        assertNull(tree.get("custom_fields"));
+        verify(request, never()).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
     }
 
     @Test
-    void apply_returnsTrue_whenCustomPropertiesAreEmptyAndApplicationHasCustomSchemaId() {
+    void apply_setsHeader_whenCustomPropertiesAreEmptyAndApplicationHasCustomSchemaId() {
         when(context.getDeployment()).thenReturn(application);
         application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
         Map<String, Object> customProps = new HashMap<>();
         customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         application.setApplicationProperties(customProps);
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
+
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
-        assertTrue(result);
-        assertNotNull(tree.get("custom_fields"));
+
+        assertFalse(result);
+        verify(request).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
     }
 
-    @Test
-    void apply_appendsCustomProperties_whenApplicationHasCustomSchemaIdAndCustomFieldsPassed() throws JsonProcessingException {
+   @Test
+    void apply_setsApplicationPropertiesHeader_whenApplicationHasCustomSchemaIdAndCustomFieldsPassed() {
         String serverFile = "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext";
         when(context.getDeployment()).thenReturn(application);
         application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
@@ -159,22 +163,13 @@ public class AppendCustomApplicationPropertiesFnTest {
         customProps.put("serverFile", serverFile);
         application.setApplicationProperties(customProps);
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
-        ObjectNode tree = (ObjectNode) ProxyUtil.MAPPER.readTree("""
-                {
-                    "custom_fields": {
-                        "foo": "bar"
-                    }
-                }
-                """);
-        boolean result = function.apply(tree);
-        assertTrue(result);
-        assertNotNull(tree.get("custom_fields"));
-        assertEquals(serverFile,
-                tree.get("custom_fields").get("application_properties").get("serverFile").asText());
-        assertFalse(tree.get("custom_fields").get("application_properties").has("clientFile"));
-        assertTrue(tree.get("custom_fields").has("foo"));
-        assertEquals("bar",
-                tree.get("custom_fields").get("foo").asText());
 
+        ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
+        tree.putObject("custom_fields").put("foo", "bar");
+
+        boolean result = function.apply(tree);
+
+        assertFalse(result);
+        verify(request).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
     }
 }
