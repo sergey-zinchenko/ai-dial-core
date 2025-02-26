@@ -22,7 +22,7 @@ public class AppendApplicationPropertiesFn extends BaseRequestFunction<ObjectNod
     @Override
     public Boolean apply(ObjectNode tree) {
         Deployment deployment = context.getDeployment();
-        if (!(deployment instanceof Application application && application.getApplicationTypeSchemaId() != null)) {
+        if (!(deployment instanceof Application application && application.isCustom())) {
             return false;
         }
         Map<String, Object> props = ApplicationTypeSchemaUtils.getCustomServerProperties(context.getConfig(), application);
