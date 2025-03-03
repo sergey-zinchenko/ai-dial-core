@@ -134,7 +134,10 @@ public class ApplicationService {
 
             if (meta instanceof ResourceItemMetadata) {
                 Application application = getApplication(resource).getValue();
-                application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
+                boolean propertyFilteringRequired = !Objects.equals(context.getSourceDeployment(), application.getName());
+                if (propertyFilteringRequired) {
+                    application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
+                }
                 list.add(application);
             } else {
                 list.addAll(getApplications(resource, context));
@@ -200,7 +203,10 @@ public class ApplicationService {
                     try {
                         ResourceDescriptor item = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
                         Application application = getApplication(item).getValue();
-                        application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
+                        boolean propertyFilteringRequired = !Objects.equals(ctx.getSourceDeployment(), application.getName());
+                        if (propertyFilteringRequired) {
+                            application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(ctx, item, application);
+                        }
                         application = ApplicationTypeSchemaUtils.modifyEndpointsForCustomApplication(ctx.getConfig(), application);
                         applications.add(application);
                     } catch (ResourceNotFoundException ignore) {
