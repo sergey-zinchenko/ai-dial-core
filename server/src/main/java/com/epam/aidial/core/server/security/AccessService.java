@@ -98,10 +98,11 @@ public class AccessService {
                 || resources.equals(ruleService.getAllowedPublicResources(context, resources));
     }
 
-    public boolean canCreateCodeApps(List<String> actualUserRoles) {
-        if (createCodeAppRoles == null) {
+    public boolean canCreateCodeApps(ProxyContext context) {
+        if (context.getApiKeyData().getPerRequestKey() != null || createCodeAppRoles == null) {
             return true;
         }
+        List<String> actualUserRoles = context.getUserRoles();
         return !createCodeAppRoles.isEmpty()
                 && actualUserRoles.stream().anyMatch(createCodeAppRoles::contains);
     }
