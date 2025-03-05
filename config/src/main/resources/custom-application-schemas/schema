@@ -51,6 +51,10 @@
         "dial:applicationTypeDisplayName": {
           "type": "string",
           "description": "Display name of the custom application of given type"
+        },
+        "dial:usePropertiesHeader": {
+          "type": "boolean",
+          "description": "If this flag is set to true, the header with properties will augment the request while proxying"
         }
       },
       "required": [

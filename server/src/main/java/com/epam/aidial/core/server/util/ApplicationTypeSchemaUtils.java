@@ -93,15 +93,29 @@ public class ApplicationTypeSchemaUtils {
         }
     }
 
-    public static Map<String, Object> getCustomServerProperties(Config config, Application application) {
+    @FunctionalInterface
+    public interface ServerPropertiesConsumer {
+        void accept(Map<String, Object> properties, boolean usePropertiesHeader) throws JsonProcessingException;
+    }
+
+    public static void getCustomServerProperties(Config config, Application application, ServerPropertiesConsumer consumer) {
         String customApplicationSchema = getCustomApplicationSchemaOrThrow(config, application);
         if (customApplicationSchema == null) {
-            return Collections.emptyMap();
+            return;
         }
+
         if (application.getApplicationProperties() == null) {
             throw new ApplicationTypeSchemaValidationException("Typed application's properties not set");
         }
-        return filterProperties(application.getApplicationProperties(), customApplicationSchema, "server");
+
+        try {
+            JsonNode schemaNode = ProxyUtil.MAPPER.readTree(customApplicationSchema);
+            boolean usePropertiesHeader = !schemaNode.has("dial:usePropertiesHeader") || schemaNode.get("dial:usePropertiesHeader").asBoolean();
+            Map<String, Object> serverProperties = filterProperties(application.getApplicationProperties(), customApplicationSchema, "server");
+            consumer.accept(serverProperties, usePropertiesHeader);
+        } catch (JsonProcessingException e) {
+            throw new ApplicationTypeSchemaProcessingException("Failed to parse custom application schema", e);
+        }
     }
 
     @FunctionalInterface

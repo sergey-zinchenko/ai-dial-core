@@ -11,8 +11,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Map;
-
+import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_ID;
 import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_PROPERTIES;
 
 @Slf4j
@@ -28,8 +27,16 @@ public class AppendApplicationPropertiesFn extends BaseRequestFunction<ObjectNod
         if (!(deployment instanceof Application application && application.isCustom())) {
             return false;
         }
-        Map<String, Object> props = ApplicationTypeSchemaUtils.getCustomServerProperties(context.getConfig(), application);
-        context.getProxyRequest().putHeader(HEADER_APPLICATION_PROPERTIES, ProxyUtil.MAPPER.writeValueAsString(props));
+
+        context.getProxyRequest().putHeader(HEADER_APPLICATION_ID, deployment.getName());
+
+        ApplicationTypeSchemaUtils.getCustomServerProperties(context.getConfig(), application, (properties, usePropertiesHeader) -> {
+            if (usePropertiesHeader) {
+                String propsString = ProxyUtil.MAPPER.writeValueAsString(properties);
+                context.getProxyRequest().putHeader(HEADER_APPLICATION_PROPERTIES, propsString);
+            }
+        });
+
         return false;
     }
 }

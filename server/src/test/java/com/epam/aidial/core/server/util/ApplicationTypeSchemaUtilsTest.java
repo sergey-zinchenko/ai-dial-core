@@ -119,32 +119,35 @@ public class ApplicationTypeSchemaUtilsTest {
     }
 
     @Test
-    public void getCustomServerProperties_returnsProperties_whenSchemaExists() {
+    void getCustomServerProperties_returnsProperties_whenSchemaExists() {
         when(config.getCustomApplicationSchema(any())).thenReturn(schema);
         application.setApplicationProperties(customProperties);
         application.setApplicationTypeSchemaId(URI.create("schemaId"));
 
-        Map<String, Object> result = ApplicationTypeSchemaUtils.getCustomServerProperties(config, application);
-
-        Assertions.assertEquals(serverProperties, result);
+        ApplicationTypeSchemaUtils.getCustomServerProperties(config, application, (properties, usePropertiesHeader) -> {
+            Assertions.assertEquals(serverProperties, properties);
+            Assertions.assertTrue(usePropertiesHeader);
+        });
     }
 
     @Test
-    public void getCustomServerProperties_returnsEmptyMap_whenSchemaIsNull() {
+    void getCustomServerProperties_returnsEmptyMap_whenSchemaIsNull() {
         application.setApplicationTypeSchemaId(null);
 
-        Map<String, Object> result = ApplicationTypeSchemaUtils.getCustomServerProperties(config, application);
-
-        Assertions.assertEquals(Collections.emptyMap(), result);
+        ApplicationTypeSchemaUtils.getCustomServerProperties(config, application, (properties, usePropertiesHeader) -> {
+            Assertions.assertEquals(Collections.emptyMap(), properties);
+            Assertions.assertTrue(usePropertiesHeader);
+        });
     }
 
     @Test
-    public void getCustomServerProperties_throws_whenSchemaNotFound() {
+    void getCustomServerProperties_throws_whenSchemaNotFound() {
         application.setApplicationTypeSchemaId(URI.create("schemaId"));
         when(config.getCustomApplicationSchema(any())).thenReturn(null);
 
-        Assertions.assertThrows(ApplicationTypeSchemaValidationException.class, () ->
-                ApplicationTypeSchemaUtils.getCustomServerProperties(config, application));
+        assertThrows(ApplicationTypeSchemaValidationException.class, () ->
+                ApplicationTypeSchemaUtils.getCustomServerProperties(config, application, (properties, usePropertiesHeader) -> {
+                }));
     }
 
 

@@ -18,6 +18,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_ID;
 import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_PROPERTIES;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -91,6 +93,7 @@ public class AppendCustomApplicationPropertiesFnTest {
     void apply_throws_whenApplicationHasCustomSchemaIdAndNoCustomFieldsPassedAndApplicationPropertiesIsNull() {
         when(context.getDeployment()).thenReturn(application);
         application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
+        application.setName("applicationName");
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         assertThrows(ApplicationTypeSchemaValidationException.class, () -> function.apply(tree));
@@ -104,13 +107,15 @@ public class AppendCustomApplicationPropertiesFnTest {
         customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         customProps.put("serverFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name2.ext");
         application.setApplicationProperties(customProps);
+        application.setName("applicationName");
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
 
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
 
         assertFalse(result);
-        verify(request).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, times(1)).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, times(1)).putHeader(eq(HEADER_APPLICATION_ID), eq("applicationName"));
     }
 
     @Test
@@ -123,18 +128,20 @@ public class AppendCustomApplicationPropertiesFnTest {
 
         assertFalse(result);
         verify(request, never()).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, never()).putHeader(eq(HEADER_APPLICATION_ID), anyString());
     }
 
     @Test
     void apply_returnsFalse_whenApplicationHasNoCustomSchemaId() {
         when(context.getDeployment()).thenReturn(application);
         application.setApplicationTypeSchemaId(null);
-
+        application.setName("applicationName");
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
 
         assertFalse(result);
         verify(request, never()).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, never()).putHeader(eq(HEADER_APPLICATION_ID), anyString());
     }
 
     @Test
@@ -144,13 +151,15 @@ public class AppendCustomApplicationPropertiesFnTest {
         Map<String, Object> customProps = new HashMap<>();
         customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         application.setApplicationProperties(customProps);
+        application.setName("applicationName");
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
 
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
         boolean result = function.apply(tree);
 
         assertFalse(result);
-        verify(request).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, times(1)).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, times(1)).putHeader(eq(HEADER_APPLICATION_ID), eq("applicationName"));
     }
 
     @Test
@@ -162,6 +171,7 @@ public class AppendCustomApplicationPropertiesFnTest {
         customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
         customProps.put("serverFile", serverFile);
         application.setApplicationProperties(customProps);
+        application.setName("applicationName");
         when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schema);
 
         ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
@@ -170,6 +180,57 @@ public class AppendCustomApplicationPropertiesFnTest {
         boolean result = function.apply(tree);
 
         assertFalse(result);
-        verify(request).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, times(1)).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, times(1)).putHeader(eq(HEADER_APPLICATION_ID), eq("applicationName"));
+    }
+
+    @Test
+    void apply_notSetsHeader_whenFlagIsFalse() {
+        when(context.getDeployment()).thenReturn(application);
+        application.setApplicationTypeSchemaId(URI.create("customSchemaId"));
+        Map<String, Object> customProps = new HashMap<>();
+        customProps.put("clientFile", "files/public/valid-file-path/valid-sub-path/valid%20file%20name1.ext");
+        application.setApplicationProperties(customProps);
+        application.setName("applicationName");
+        String schemaWithoutHeader = """
+                {
+                  "$schema": "https://dial.epam.com/application_type_schemas/schema#",
+                  "$id": "https://mydial.epam.com/custom_application_schemas/specific_application_type",
+                  "dial:applicationTypeEditorUrl": "https://mydial.epam.com/specific_application_type_editor",
+                  "dial:applicationTypeDisplayName": "Specific Application Type",
+                  "dial:applicationTypeCompletionEndpoint": "http://specific_application_service/opeani/v1/completion",
+                  "dial:usePropertiesHeader": false,
+                  "properties": {
+                    "clientFile": {
+                      "type": "string",
+                      "format": "dial-file-encoded",
+                      "dial:meta": {
+                        "dial:propertyKind": "client",
+                        "dial:propertyOrder": 1
+                      },
+                      "dial:file": true
+                    },
+                    "serverFile": {
+                      "type": "string",
+                      "format": "dial-file-encoded",
+                      "dial:meta": {
+                        "dial:propertyKind": "server",
+                        "dial:propertyOrder": 2
+                      },
+                      "dial:file": true
+                    }
+                  },
+                  "required": [
+                    "clientFile"
+                  ]
+                }""";
+        when(config.getCustomApplicationSchema(eq(URI.create("customSchemaId")))).thenReturn(schemaWithoutHeader);
+
+        ObjectNode tree = ProxyUtil.MAPPER.createObjectNode();
+        boolean result = function.apply(tree);
+
+        assertFalse(result);
+        verify(request, never()).putHeader(eq(HEADER_APPLICATION_PROPERTIES), anyString());
+        verify(request, times(1)).putHeader(eq(HEADER_APPLICATION_ID), eq("applicationName"));
     }
 }

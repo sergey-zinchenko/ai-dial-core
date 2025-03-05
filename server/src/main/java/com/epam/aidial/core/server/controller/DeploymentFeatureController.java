@@ -25,9 +25,9 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.Map;
 import java.util.function.Function;
 
+import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_ID;
 import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_PROPERTIES;
 
 @Slf4j
@@ -139,9 +139,13 @@ public class DeploymentFeatureController {
 
         if ((deployment instanceof Application application && application.isCustom())) {
             try {
-                Map<String, Object> properties = ApplicationTypeSchemaUtils.getCustomServerProperties(context.getConfig(), application);
-                String propsString = ProxyUtil.MAPPER.writeValueAsString(properties);
-                proxyRequest.headers().add(HEADER_APPLICATION_PROPERTIES, propsString);
+                proxyRequest.headers().add(HEADER_APPLICATION_ID, deployment.getName());
+                ApplicationTypeSchemaUtils.getCustomServerProperties(context.getConfig(), application, (properties, usePropertiesHeader) -> {
+                    if (usePropertiesHeader) {
+                        String propsString = ProxyUtil.MAPPER.writeValueAsString(properties);
+                        proxyRequest.headers().add(HEADER_APPLICATION_PROPERTIES, propsString);
+                    }
+                });
             } catch (Throwable e) {
                 throw new HttpException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to enrich request with application properties");
             }
