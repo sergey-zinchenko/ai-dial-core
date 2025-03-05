@@ -134,6 +134,7 @@ public class DeploymentFeatureController {
             excludeHeaders.add(HttpHeaders.AUTHORIZATION, "whatever");
         }
         excludeHeaders.add(HEADER_APPLICATION_PROPERTIES, "whatever");
+        excludeHeaders.add(HEADER_APPLICATION_ID, "whatever");
 
         ProxyUtil.copyHeaders(request.headers(), proxyRequest.headers(), excludeHeaders);
 

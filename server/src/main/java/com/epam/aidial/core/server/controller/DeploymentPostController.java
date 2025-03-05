@@ -55,6 +55,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_ID;
+import static com.epam.aidial.core.server.Proxy.HEADER_APPLICATION_PROPERTIES;
+
 @Slf4j
 public class DeploymentPostController {
 
@@ -306,6 +309,8 @@ public class DeploymentPostController {
         if (!deployment.isForwardAuthToken()) {
             excludeHeaders.add(HttpHeaders.AUTHORIZATION, "whatever");
         }
+        excludeHeaders.add(HEADER_APPLICATION_PROPERTIES, "whatever");
+        excludeHeaders.add(HEADER_APPLICATION_ID, "whatever");
 
         ProxyUtil.copyHeaders(request.headers(), proxyRequest.headers(), excludeHeaders);
 
