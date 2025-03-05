@@ -133,12 +133,17 @@ public class ApplicationService {
             ResourceDescriptor resource = ResourceDescriptorFactory.fromAnyUrl(meta.getUrl(), encryptionService);
 
             if (meta instanceof ResourceItemMetadata) {
-                Application application = getApplication(resource).getValue();
-                boolean propertyFilteringRequired = !Objects.equals(context.getSourceDeployment(), application.getName());
-                if (propertyFilteringRequired) {
-                    application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
+                try {
+                    Application application = getApplication(resource).getValue();
+                    boolean propertyFilteringRequired = !Objects.equals(context.getSourceDeployment(), application.getName());
+                    if (propertyFilteringRequired) {
+                        application = ApplicationTypeSchemaUtils.filterCustomClientPropertiesWhenNoWriteAccess(context, resource, application);
+                    }
+                    list.add(application);
+                } catch (ResourceNotFoundException ignore) {
+                    // skip shared app which might be deleted incidentally
+                    log.warn("Shared application is not found: {}", meta.getUrl());
                 }
-                list.add(application);
             } else {
                 list.addAll(getApplications(resource, context));
             }
