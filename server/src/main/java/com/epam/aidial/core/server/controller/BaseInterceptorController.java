@@ -8,6 +8,7 @@ import com.epam.aidial.core.server.function.BaseRequestFunction;
 import com.epam.aidial.core.server.function.CollectResponseAttachmentsFn;
 import com.epam.aidial.core.server.function.request.RequestObject;
 import com.epam.aidial.core.server.util.ProxyUtil;
+import com.epam.aidial.core.server.vertx.LenientChunkedContentLength;
 import com.epam.aidial.core.server.vertx.stream.BufferingReadStream;
 import com.epam.aidial.core.storage.http.HttpException;
 import com.epam.aidial.core.storage.http.HttpStatus;
@@ -133,6 +134,7 @@ public abstract class BaseInterceptorController extends BaseDeploymentPostContro
         Buffer requestBody = context.getRequestBody();
         proxyRequest.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(requestBody.length()));
 
+        LenientChunkedContentLength.allowOn(proxyRequest);
         proxyRequest.send(requestBody)
                 .onSuccess(this::handleProxyResponse)
                 .onFailure(this::handleProxyResponseError);
